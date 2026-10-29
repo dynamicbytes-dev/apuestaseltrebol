@@ -151,6 +151,15 @@ Módulo común a los tres roles: el historial unificado de todo lo que se pudo a
 - **Hipismo**: las carreras con su podio y sus ejemplares.
 - **Animalitos**: los sorteos con el número ganador, el animalito y si el resultado fue automático o manual.
 
+### Estado de liquidación en la lista de tickets
+
+La lista de tickets de la taquilla muestra **dos estados**:
+
+- **Estado del pago**: pendiente, pagado o anulado.
+- **Resultado de la jugada**: ganador, no ganador, pendiente de resultado o en revisión.
+
+Al listar tickets, la aplicación liquida en lote las modalidades locales (animalitos e hipismo) con dos consultas, de modo que la tabla muestra desde el principio si la jugada es ganadora o perdedora, y no solo "pendiente". El parley se resuelve en el momento del cobro, porque su resultado vive en el proveedor de datos.
+
 ### Sobre las fechas del proveedor
 
 El proveedor puede devolver **fechas equivocadas** para un partido: jornadas movidas o partidos aplazados. La aplicación convierte todo a hora de Caracas, pero no puede deducir la fecha correcta de un dato que viene mal.

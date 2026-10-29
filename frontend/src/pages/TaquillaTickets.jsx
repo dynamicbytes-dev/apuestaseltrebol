@@ -65,7 +65,17 @@ export default function TaquillaTickets() {
     setSettlementLoading(true);
     try {
       const res = await api.get(`/taquilla/tickets/${ticketId}/settlement`);
-      setSettlement(res.data.data);
+      const data = res.data.data;
+
+      setSettlement(data);
+
+      // La liquidación se calcula en el servidor: la fila de la tabla se
+      // actualiza con el resultado real para que no diga "pendiente".
+      setTickets((prev) => prev.map((t) => (
+        t.id === ticketId
+          ? { ...t, settlement_status: data.status, settlement_note: data.note }
+          : t
+      )));
     } catch {
       setSettlement(null);
     } finally {
@@ -345,7 +355,7 @@ export default function TaquillaTickets() {
                           <span className={ticketStatusClass(t.status)}>
                             {TICKET_STATUS_LABELS[t.status] ?? t.status}
                           </span>
-                          {t.type === 'parley' && t.settlement_status && (
+                          {t.settlement_status && t.settlement_status !== 'pending' && (
                             <span
                               className={settlementStatusClass(t.settlement_status)}
                               title={t.settlement_note || undefined}
