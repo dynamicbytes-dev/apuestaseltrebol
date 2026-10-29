@@ -5,12 +5,12 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AnimalitoSorteoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\GameBoardController;
 use App\Http\Controllers\HorseController;
 use App\Http\Controllers\LotteryController;
 use App\Http\Controllers\ParleyController;
 use App\Http\Controllers\ParleyScheduleController;
 use App\Http\Controllers\RaceController;
+use App\Http\Controllers\ResultBoardController;
 use App\Http\Controllers\SupervisorController;
 use App\Http\Controllers\SupervisorDashboardController;
 use App\Http\Controllers\TaquillaController;
@@ -32,10 +32,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/parley/events', [ParleyController::class, 'events']);
     Route::get('/parley/events/{sport}/{eventId}/odds', [ParleyController::class, 'odds']);
 
-    // Cartelera de juegos: disponible para los tres roles.
-    Route::get('/games', [GameBoardController::class, 'index']);
-    Route::get('/games/leagues', [GameBoardController::class, 'leagues']);
-    Route::get('/games/lotteries', [GameBoardController::class, 'lotteries']);
+    // Cartelera de resultados: disponible para los tres roles.
+    Route::get('/results', [ResultBoardController::class, 'index']);
+    Route::get('/results/leagues', [ResultBoardController::class, 'leagues']);
+    Route::get('/results/lotteries', [ResultBoardController::class, 'lotteries']);
 });
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {

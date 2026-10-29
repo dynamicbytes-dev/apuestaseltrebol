@@ -141,11 +141,12 @@ Se mantienen como estaban: una sola selección por ticket, todo o nada.
 - **Hipismo**: se compara el ejemplar jugado contra el ganador oficial de la carrera. Si la carrera no está finalizada, no se puede cobrar.
 - **Parley**: cada pierna se liquida contra el resultado oficial del evento (ganador 1X2, doble oportunidad, total de goles y ambos equipos marcan). Todo lo demás pasa a revisión manual del supervisor, que decide con `POST /api/supervisor/tickets/{ticket}/review`.
 
-## Cartelera de juegos
+## Cartelera de resultados
 
-Módulo común a los tres roles: el calendario unificado de todo lo que se puede apostar, con sus resultados.
+Módulo común a los tres roles: el historial unificado de todo lo que se pudo apostar y su desenlace.
 
 - **Filtros**: rango de fechas, tipo de apuesta (parley, hipismo, animalitos), deporte, liga, estado, lotería y búsqueda por texto.
+- **Un filtro acota a su modalidad**: elegir una lotería muestra los sorteos de animalitos de esa lotería (no los partidos de parley); elegir un deporte o una liga muestra el parley. El selector de estado se adapta a la modalidad activa.
 - **Parley**: los eventos del proveedor con su horario, liga, marcador y estado. Si el proveedor fechó mal un partido, el administrador puede corregir la fecha desde la propia cartelera: la corrección se aplica en todas partes (apuestas, liquidación y cartelera) y el partido cambia de día. La fecha original del proveedor se muestra al lado de la corregida.
 - **Hipismo**: las carreras con su podio y sus ejemplares.
 - **Animalitos**: los sorteos con el número ganador, el animalito y si el resultado fue automático o manual.
@@ -220,9 +221,9 @@ La sesión usa tokens JWT. La duración se toma de `JWT_TTL` (en minutos, por de
 | `GET` | `/api/parley/sports` | Deportes disponibles |
 | `GET` | `/api/parley/events` | Eventos por deporte y fecha |
 | `GET` | `/api/parley/events/{sport}/{eventId}/odds` | Cuotas de un evento |
-| `GET` | `/api/games` | Cartelera de juegos (todas las modalidades, con filtros) |
-| `GET` | `/api/games/leagues` | Listado de ligas de un deporte |
-| `GET` | `/api/games/lotteries` | Loterías con su horario |
+| `GET` | `/api/results` | Cartelera de resultados (con filtros) |
+| `GET` | `/api/results/leagues` | Listado de ligas de un deporte |
+| `GET` | `/api/results/lotteries` | Loterías con su horario |
 
 ### Administrador (`/api/admin`)
 
@@ -337,7 +338,7 @@ La CI (`.github/workflows/ci.yml`) corre en cada push y en cada PR contra `main`
 - [x] Sorteo declarado por la apuesta y pago por pierna ganadora
 - [x] Flujo de revisión manual para jugadas que no se pueden liquidar solas
 - [x] Analíticas por agencia e historial de movimientos
-- [x] Cartelera de juegos con filtros, disponible en los tres paneles
+- [x] Cartelera de resultados con filtros, disponible en los tres paneles
 - [x] Corrección manual del calendario de partidos con fecha errónea
 - [x] Sesión configurable con renovación automática
 - [x] Planificador operativo (sincronización de resultados de loterías)

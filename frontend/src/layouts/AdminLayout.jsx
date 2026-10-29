@@ -25,7 +25,7 @@ import '../styles/admin.css';
 
 const navItems = [
   { to: '/dashboard', label: 'Panel General', icon: LayoutDashboard },
-  { to: '/cartelera', label: 'Cartelera de Juegos', icon: CalendarDays },
+  { to: '/cartelera', label: 'Cartelera de Resultados', icon: CalendarDays },
   { to: '/agencies', label: 'Agencias', icon: Building2 },
   { to: '/supervisors', label: 'Supervisores', icon: ShieldCheck },
   { to: '/lotteries', label: 'Loterías & Animalitos', icon: Ticket },

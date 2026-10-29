@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   CalendarDays,
   AlertCircle,
@@ -25,11 +25,32 @@ const SPORTS = [
 ];
 
 const TIPOS = [
-  { key: '', label: 'Todos' },
+  { key: '', label: 'Todas' },
   { key: 'parley', label: 'Parley deportivo' },
   { key: 'hipismo', label: 'Hipismo' },
   { key: 'animalitos', label: 'Animalitos' },
 ];
+
+// Los estados dependen de la modalidad: el proveedor usa codigos propios
+// (NS, LIVE, FT), el hipismo y los animalitos los tienen propios.
+const STATUS_POR_TIPO = {
+  parley: [
+    { value: '', label: 'Todos' },
+    { value: 'NS', label: 'Programado' },
+    { value: 'LIVE', label: 'En vivo' },
+    { value: 'FT', label: 'Finalizado' },
+  ],
+  hipismo: [
+    { value: '', label: 'Todos' },
+    { value: 'pending', label: 'Pendiente' },
+    { value: 'finished', label: 'Finalizado' },
+  ],
+  animalitos: [
+    { value: '', label: 'Todos' },
+    { value: 'resolved', label: 'Con resultado' },
+    { value: 'unresolved', label: 'Sin resultado' },
+  ],
+};
 
 function formatFechaHora(value) {
   if (!value) return '—';
@@ -71,10 +92,35 @@ export default function Cartelera() {
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Modalidad que se está mostrando. Un filtro que solo aplica a una
+  // modalidad acota la cartelera a esa: elegir una loteria muestra sus
+  // sorteos, no los partidos de parley.
+  const effectiveType = useMemo(() => {
+    if (tipo) return tipo;
+    if (lotteryId) return 'animalitos';
+    if (sport || league) return 'parley';
+
+    const s = status.toLowerCase();
+    if (['pending', 'finished'].includes(s)) return 'hipismo';
+    if (['resolved', 'unresolved'].includes(s)) return 'animalitos';
+    if (s !== '') return 'parley';
+
+    return '';
+  }, [tipo, lotteryId, sport, league, status]);
+
+  const statusOptions = STATUS_POR_TIPO[effectiveType] ?? STATUS_POR_TIPO.parley;
+
+  // Si el estado elegido ya no aplica a la modalidad, se limpia.
+  useEffect(() => {
+    if (status && !statusOptions.some((o) => o.value === status)) {
+      setStatus('');
+    }
+  }, [statusOptions, status]);
+
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('/games', {
+      const res = await api.get('/results', {
         params: {
           from: from || undefined,
           to: to || undefined,
@@ -109,7 +155,7 @@ export default function Cartelera() {
     let active = true;
 
     api
-      .get('/games/leagues', { params: { sport, date: from } })
+      .get('/results/leagues', { params: { sport, date: from } })
       .then((res) => {
         if (active) setLeagues(res.data.data);
       })
@@ -124,7 +170,7 @@ export default function Cartelera() {
 
   useEffect(() => {
     api
-      .get('/games/lotteries')
+      .get('/results/lotteries')
       .then((res) => setLotteries(res.data.data))
       .catch(() => setLotteries([]));
   }, []);
@@ -169,11 +215,11 @@ export default function Cartelera() {
       <header className="page-header">
         <div>
           <h1 className="page-title">
-            <span>Cartelera de Juegos</span>
-            <span className="page-title-badge">Calendario</span>
+            <span>Cartelera de Resultados</span>
+            <span className="page-title-badge">Resultados</span>
           </h1>
           <p style={{ color: 'var(--text-secondary)', margin: '0.35rem 0 0', fontSize: '0.9rem' }}>
-            Todos los juegos y sus resultados: parley, hipismo y animalitos.
+            Todos los resultados: parley, hipismo y animalitos.
           </p>
         </div>
 
@@ -288,12 +334,9 @@ export default function Cartelera() {
             </span>
           </label>
           <select id="cb-status" className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">Todos</option>
-            <option value="NS">Programado</option>
-            <option value="LIVE">En vivo</option>
-            <option value="FT">Finalizado</option>
-            <option value="pending">Pendiente</option>
-            <option value="finished">Finalizado</option>
+            {statusOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
           </select>
         </div>
 
@@ -329,7 +372,7 @@ export default function Cartelera() {
         <p className="empty">No hay datos para mostrar.</p>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: '0.85rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: '0.85rem', alignItems: 'center' }}>
             <span style={{ color: 'var(--text-secondary)' }}>
               Periodo: <strong style={{ color: 'var(--text-primary)' }}>{data.period.from} → {data.period.to}</strong>
             </span>
@@ -342,12 +385,29 @@ export default function Cartelera() {
             <span style={{ color: 'var(--text-secondary)' }}>
               Animalitos: <strong style={{ color: '#a78bfa' }}>{counts.animalitos ?? 0}</strong>
             </span>
+            {effectiveType && (
+              <span
+                style={{
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid #38bdf8',
+                  color: '#7dd3fc',
+                  padding: '0.15rem 0.55rem',
+                  borderRadius: '12px',
+                  fontSize: '0.78rem',
+                }}
+              >
+                {TIPOS.find((t) => t.key === effectiveType)?.label ?? effectiveType}
+              </span>
+            )}
           </div>
 
           {/* PARLEY */}
           {(data.parley ?? []).length > 0 && (
             <section className="card" style={{ marginBottom: '1.25rem' }}>
-              <h2 className="card-title">Parley Deportivo</h2>
+              <h2 className="card-title">
+                <Trophy size={16} style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />
+                Parley Deportivo
+              </h2>
               <div className="table-wrap">
                 <table className="table">
                   <thead>
