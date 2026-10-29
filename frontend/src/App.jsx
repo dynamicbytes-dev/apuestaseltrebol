@@ -4,7 +4,6 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Agencies from './pages/Agencies';
 import Supervisors from './pages/Supervisors';
-import Limits from './pages/Limits';
 import Lotteries from './pages/Lotteries';
 import LotteryDetail from './pages/LotteryDetail';
 import Races from './pages/Races';
@@ -14,6 +13,7 @@ import SupervisorDashboard from './pages/SupervisorDashboard';
 import Taquillas from './pages/Taquillas';
 import Historial from './pages/Historial';
 import Analiticas from './pages/Analiticas';
+import Topes from './pages/Topes';
 import Cartelera from './pages/Cartelera';
 import CarteleraLayout from './layouts/CarteleraLayout';
 import TaquillaHome from './pages/TaquillaHome';
@@ -124,7 +124,6 @@ function App() {
           <Route path="/races" element={<Races />} />
           <Route path="/races/:raceId" element={<RaceDetail />} />
           <Route path="/parley" element={<Parley />} />
-          <Route path="/limits" element={<Limits />} />
           <Route path="/analiticas" element={<Analiticas />} />
         </Route>
 
@@ -138,6 +137,7 @@ function App() {
         >
           <Route index element={<SupervisorDashboard />} />
           <Route path="taquillas" element={<Taquillas />} />
+          <Route path="topes" element={<Topes />} />
           <Route path="historial" element={<Historial />} />
           <Route path="analiticas" element={<Analiticas />} />
         </Route>

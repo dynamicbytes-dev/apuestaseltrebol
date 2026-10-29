@@ -6,6 +6,7 @@ use App\Http\Controllers\AnimalitoSorteoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HorseController;
+use App\Http\Controllers\LimitsController;
 use App\Http\Controllers\LotteryController;
 use App\Http\Controllers\ParleyController;
 use App\Http\Controllers\ParleyScheduleController;
@@ -98,6 +99,11 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->group(function 
     Route::delete('/taquillas/{taquilla}', [TaquillaController::class, 'destroy']);
 
     Route::post('/tickets/{ticket}/review', [TicketReviewController::class, 'store']);
+
+    // Topes de la agencia y de sus taquillas.
+    Route::get('/limits', [LimitsController::class, 'index']);
+    Route::patch('/limits', [LimitsController::class, 'updateAgency']);
+    Route::patch('/taquillas/{taquilla}/limits', [LimitsController::class, 'updateTaquilla']);
 
     Route::get('/tickets', [TicketMovementController::class, 'agencyTickets']);
     Route::get('/tickets/{ticket}/movements', [TicketMovementController::class, 'agencyTicketMovements']);
