@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
@@ -12,7 +14,9 @@ class User extends Authenticatable implements JWTSubject
     use HasFactory, Notifiable;
 
     public const ROLE_ADMIN = 'administrador';
+
     public const ROLE_SUPERVISOR = 'supervisor';
+
     public const ROLE_TICKETER = 'taquilla';
 
     protected $fillable = [
@@ -49,23 +53,23 @@ class User extends Authenticatable implements JWTSubject
         return [];
     }
 
-    public function agency(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
     }
 
-    public function supervisorOf(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function supervisorOf(): BelongsTo
     {
         return $this->belongsTo(User::class, 'supervisor_id');
     }
 
-    public function taquillas(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function taquillas(): HasMany
     {
         return $this->hasMany(User::class, 'supervisor_id')
             ->where('role', self::ROLE_TICKETER);
     }
 
-    public function tickets(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class, 'taquilla_id');
     }

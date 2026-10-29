@@ -15,7 +15,6 @@ use App\Services\TicketMovementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -24,8 +23,7 @@ class TicketController extends Controller
     public function __construct(
         private readonly SportsSettlementService $settlement,
         private readonly TicketMovementService $movements,
-    ) {
-    }
+    ) {}
 
     public function catalog(): JsonResponse
     {
@@ -240,6 +238,7 @@ class TicketController extends Controller
 
                     if ((int) $race->winner_horse_id !== (int) $selection->horse_id) {
                         $winnerName = $race->winner ? "N° {$race->winner->number} - {$race->winner->name}" : 'No asignado';
+
                         return response()->json([
                             'message' => "El ticket no es ganador. En la carrera \"{$race->name}\", el ejemplar ganador oficial fue {$winnerName}.",
                         ], 422);
@@ -428,7 +427,8 @@ class TicketController extends Controller
         };
     }
 
-    private function prepareAnimalitos(Request $request): array    {
+    private function prepareAnimalitos(Request $request): array
+    {
         $data = $request->validate([
             'lottery_id' => ['required', 'integer'],
             'lottery_animal_id' => ['required', 'integer'],

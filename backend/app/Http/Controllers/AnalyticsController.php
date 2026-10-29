@@ -13,9 +13,7 @@ use Illuminate\Http\Request;
  */
 class AnalyticsController extends Controller
 {
-    public function __construct(private readonly AnalyticsService $analytics)
-    {
-    }
+    public function __construct(private readonly AnalyticsService $analytics) {}
 
     /**
      * Analítica de la agencia del supervisor.

@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Ticket;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Agregados de operación para el análisis por agencia.
@@ -82,7 +82,7 @@ class AnalyticsService
         return [$from, $to];
     }
 
-    private function baseQuery(?int $agencyId, string $from, string $to): \Illuminate\Database\Eloquent\Builder
+    private function baseQuery(?int $agencyId, string $from, string $to): Builder
     {
         $query = Ticket::query();
 

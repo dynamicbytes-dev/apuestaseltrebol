@@ -1,8 +1,12 @@
 <?php
 
+use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\EnsureUserIsSupervisor;
+use App\Http\Middleware\EnsureUserIsTaquilla;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Tymon\JWTAuth\Http\Middleware\Authenticate;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,10 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'auth' => \Tymon\JWTAuth\Http\Middleware\Authenticate::class,
-            'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
-            'supervisor' => \App\Http\Middleware\EnsureUserIsSupervisor::class,
-            'taquilla' => \App\Http\Middleware\EnsureUserIsTaquilla::class,
+            'auth' => Authenticate::class,
+            'admin' => EnsureUserIsAdmin::class,
+            'supervisor' => EnsureUserIsSupervisor::class,
+            'taquilla' => EnsureUserIsTaquilla::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

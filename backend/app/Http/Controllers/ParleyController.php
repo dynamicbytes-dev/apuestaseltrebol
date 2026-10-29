@@ -10,9 +10,7 @@ use Illuminate\Validation\Rule;
 
 class ParleyController extends Controller
 {
-    public function __construct(private readonly SportsApiService $api)
-    {
-    }
+    public function __construct(private readonly SportsApiService $api) {}
 
     public function sports(): JsonResponse
     {

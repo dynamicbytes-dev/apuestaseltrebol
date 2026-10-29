@@ -2,14 +2,14 @@
 
 namespace App\Console;
 
-use Illuminate\Foundation\Console\Kernel as Kernel;
+use App\Console\Commands\FetchAnimalitosCommand;
 use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\support\Facades\Log;
+use Illuminate\Foundation\Console\Kernel;
 
 class Kernel extends Kernel
 {
     protected $commands = [
-        \App\Console\Commands\FetchAnimalitosCommand::class,
+        FetchAnimalitosCommand::class,
     ];
 
     protected function schedule(Schedule $schedule)

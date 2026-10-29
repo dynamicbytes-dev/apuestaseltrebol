@@ -4,6 +4,4 @@ namespace App\Exceptions;
 
 use Exception;
 
-class SportsApiException extends Exception
-{
-}
+class SportsApiException extends Exception {}
