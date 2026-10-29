@@ -195,7 +195,7 @@ export default function Taquillas() {
               onChange={(event) => setForm({ ...form, commission_percentage: event.target.value })}
               placeholder="13.00"
             />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+            <span className="form-hint">
               Porcentaje que te corresponde sobre las ventas de esta taquilla.
             </span>
           </div>
@@ -213,7 +213,7 @@ export default function Taquillas() {
           </div>
         </form>
 
-        <p className="empty" style={{ paddingTop: '0.75rem' }}>
+        <p className="form-note">
           La taquilla queda asignada automáticamente a tu agencia y a tu usuario. El
           porcentaje de comisión es propio de cada taquilla y se aplica sobre sus ventas.
         </p>
@@ -315,7 +315,7 @@ export default function Taquillas() {
                   <td style={{ fontFamily: 'var(--font-mono)' }}>
                     {formatAmount(taquilla.sales?.stake)}
                     <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', marginLeft: '0.35rem' }}>
-                      ({taquilla.sales?.tickets ?? 0} tickets)
+                      ({taquilla.sales?.tickets ?? 0} {taquilla.sales?.tickets === 1 ? 'ticket' : 'tickets'})
                     </span>
                   </td>
                   <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399', fontWeight: 700 }}>

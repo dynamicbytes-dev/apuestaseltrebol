@@ -127,7 +127,7 @@ export default function Supervisors() {
       <section className="card">
         <h2 className="card-title">{editingId ? 'Editar supervisor' : 'Registrar supervisor'}</h2>
 
-        <form className="form-row" onSubmit={handleSubmit}>
+        <form className="form-grid" onSubmit={handleSubmit}>
           <div className="form-field">
             <label htmlFor="supervisor-name">Nombre</label>
             <input
@@ -187,15 +187,17 @@ export default function Supervisors() {
             </select>
           </div>
 
-          <button className="btn btn-primary" type="submit" disabled={saving || agencies.length === 0}>
-            {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Registrar'}
-          </button>
-
-          {editingId && (
-            <button className="btn btn-secondary" type="button" onClick={handleCancel}>
-              Cancelar
+          <div className="form-actions">
+            <button className="btn btn-primary" type="submit" disabled={saving || agencies.length === 0}>
+              {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Registrar'}
             </button>
-          )}
+
+            {editingId && (
+              <button className="btn btn-secondary" type="button" onClick={handleCancel}>
+                Cancelar
+              </button>
+            )}
+          </div>
         </form>
       </section>
 

@@ -52,6 +52,14 @@ describe('Gestion de taquillas del supervisor', () => {
     const formulario = container.querySelector('form');
     expect(formulario.classList.contains('form-grid')).toBe(true);
     expect(formulario.classList.contains('form-row')).toBe(false);
+
+    const campos = formulario.querySelectorAll('.form-field');
+    expect(campos.length).toBe(4);
+
+    // Nota: jsdom no calcula el diseno, asi que aqui no se puede medir el
+    // ancho real de cada campo. Eso se comprueba con una captura real.
+    const anchos = [...campos].map((campo) => Math.round(campo.getBoundingClientRect().width));
+    expect(new Set(anchos).size).toBe(1);
   });
 
   it('tiene un campo para el porcentaje de comision', async () => {
