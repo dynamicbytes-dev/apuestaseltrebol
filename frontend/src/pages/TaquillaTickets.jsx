@@ -15,6 +15,7 @@ import {
   Filter,
 } from 'lucide-react';
 import api from '../api/client';
+import { printTicket } from '../utils/print';
 import { getErrorMessage } from '../utils/errors';
 import {
   TICKET_TYPE_LABELS,
@@ -711,8 +712,12 @@ export default function TaquillaTickets() {
                 )}
               </div>
 
-              {/* Historial de movimientos */}
-              <div style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
+              {/* Historial de movimientos: solo en pantalla, no cabe en un
+                  recibo de papel de la impresora termica. */}
+              <div
+                data-print="hide"
+                style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.75rem' }}
+              >
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.4rem', fontWeight: 700 }}>
                   MOVIMIENTOS:
                 </span>
@@ -754,7 +759,7 @@ export default function TaquillaTickets() {
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => window.print()}
+                onClick={() => printTicket()}
               >
                 <Printer size={16} />
                 <span>Imprimir</span>
