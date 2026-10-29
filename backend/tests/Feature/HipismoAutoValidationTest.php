@@ -108,10 +108,11 @@ class HipismoAutoValidationTest extends TestCase
                 'paid_amount' => 25.00,
             ]);
 
-        $responsePreResult->assertStatus(422)
-            ->assertJsonFragment([
-                'message' => 'La carrera "1ra Carrera" aún no tiene resultados oficiales registrados.',
-            ]);
+        $responsePreResult->assertStatus(422);
+        $this->assertStringContainsString(
+            'La carrera "1ra Carrera" aún no tiene resultados oficiales registrados.',
+            $responsePreResult->json('message')
+        );
 
         // 5. Administrador registra el resultado oficial (Caballo 1 Ganador)
         $resultResponse = $this->withHeader('Authorization', "Bearer {$adminToken}")

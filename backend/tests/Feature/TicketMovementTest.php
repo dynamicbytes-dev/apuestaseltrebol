@@ -3,16 +3,16 @@
 namespace Tests\Feature;
 
 use App\Models\Agency;
-use App\Models\Lottery;
-use App\Models\LotteryAnimal;
 use App\Models\Ticket;
 use App\Models\TicketMovement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\AnimalitosBet;
 use Tests\TestCase;
 
 class TicketMovementTest extends TestCase
 {
+    use AnimalitosBet;
     use RefreshDatabase;
 
     private Agency $agency;
@@ -39,37 +39,20 @@ class TicketMovementTest extends TestCase
         ]);
     }
 
-    private function lottery(): Lottery
+    private function animalitosPayloadFor($lottery): array
     {
-        $lottery = Lottery::create([
-            'name' => 'Lotto Activo',
-            'slug' => 'lotto-activo',
-            'payout_multiplier' => 30.00,
-            'is_active' => true,
+        return $this->animalitosPayload($lottery, [
+            ['animal' => $this->animalId($lottery, '5'), 'amount' => 10],
         ]);
-
-        LotteryAnimal::create([
-            'lottery_id' => $lottery->id,
-            'number' => '5',
-            'animal' => 'León',
-            'is_enabled' => true,
-        ]);
-
-        return $lottery;
     }
 
     public function test_la_emision_registra_un_movimiento(): void
     {
-        $lottery = $this->lottery();
+        $lottery = $this->lotteryWithSchedule();
         $token = auth('api')->login($this->taquilla);
 
         $response = $this->withHeader('Authorization', "Bearer {$token}")
-            ->postJson('/api/taquilla/tickets', [
-                'type' => 'animalitos',
-                'stake' => 10,
-                'lottery_id' => $lottery->id,
-                'lottery_animal_id' => $lottery->animals()->first()->id,
-            ]);
+            ->postJson('/api/taquilla/tickets', $this->animalitosPayloadFor($lottery));
 
         $response->assertStatus(201);
 
@@ -87,16 +70,11 @@ class TicketMovementTest extends TestCase
 
     public function test_la_anulacion_registra_un_movimiento(): void
     {
-        $lottery = $this->lottery();
+        $lottery = $this->lotteryWithSchedule();
         $token = auth('api')->login($this->taquilla);
 
         $response = $this->withHeader('Authorization', "Bearer {$token}")
-            ->postJson('/api/taquilla/tickets', [
-                'type' => 'animalitos',
-                'stake' => 10,
-                'lottery_id' => $lottery->id,
-                'lottery_animal_id' => $lottery->animals()->first()->id,
-            ]);
+            ->postJson('/api/taquilla/tickets', $this->animalitosPayloadFor($lottery));
 
         $ticketId = $response->json('data.id');
 
@@ -114,16 +92,11 @@ class TicketMovementTest extends TestCase
 
     public function test_la_taquilla_consulta_los_movimientos_de_su_ticket(): void
     {
-        $lottery = $this->lottery();
+        $lottery = $this->lotteryWithSchedule();
         $token = auth('api')->login($this->taquilla);
 
         $response = $this->withHeader('Authorization', "Bearer {$token}")
-            ->postJson('/api/taquilla/tickets', [
-                'type' => 'animalitos',
-                'stake' => 10,
-                'lottery_id' => $lottery->id,
-                'lottery_animal_id' => $lottery->animals()->first()->id,
-            ]);
+            ->postJson('/api/taquilla/tickets', $this->animalitosPayloadFor($lottery));
 
         $ticketId = $response->json('data.id');
 
@@ -164,16 +137,12 @@ class TicketMovementTest extends TestCase
 
     public function test_el_supervisor_ve_los_tickets_de_su_agencia(): void
     {
-        $lottery = $this->lottery();
+        $lottery = $this->lotteryWithSchedule();
         $token = auth('api')->login($this->taquilla);
 
         $this->withHeader('Authorization', "Bearer {$token}")
-            ->postJson('/api/taquilla/tickets', [
-                'type' => 'animalitos',
-                'stake' => 10,
-                'lottery_id' => $lottery->id,
-                'lottery_animal_id' => $lottery->animals()->first()->id,
-            ])->assertStatus(201);
+            ->postJson('/api/taquilla/tickets', $this->animalitosPayloadFor($lottery))
+            ->assertStatus(201);
 
         // Ticket de otra agencia: no debe aparecer.
         $otraAgencia = Agency::create(['name' => 'Agencia Norte', 'slug' => 'agencia-norte']);
@@ -208,16 +177,12 @@ class TicketMovementTest extends TestCase
 
     public function test_el_supervisor_filtra_los_tickets_por_estado(): void
     {
-        $lottery = $this->lottery();
+        $lottery = $this->lotteryWithSchedule();
         $token = auth('api')->login($this->taquilla);
 
         $this->withHeader('Authorization', "Bearer {$token}")
-            ->postJson('/api/taquilla/tickets', [
-                'type' => 'animalitos',
-                'stake' => 10,
-                'lottery_id' => $lottery->id,
-                'lottery_animal_id' => $lottery->animals()->first()->id,
-            ])->assertStatus(201);
+            ->postJson('/api/taquilla/tickets', $this->animalitosPayloadFor($lottery))
+            ->assertStatus(201);
 
         $supervisorToken = auth('api')->login($this->supervisor);
 

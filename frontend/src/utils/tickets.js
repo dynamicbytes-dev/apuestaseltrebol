@@ -1,3 +1,5 @@
+import { VENEZUELA_TIMEZONE } from './parley';
+
 export const TICKET_TYPE_LABELS = {
   animalitos: 'Animalitos',
   hipismo: 'Hipismo',
@@ -48,11 +50,11 @@ export function canPayTicket(ticket) {
     return false;
   }
 
-  if (ticket.type !== 'parley') {
-    return true;
+  if (ticket.settlement_status === 'lost' || ticket.settlement_status === 'review') {
+    return false;
   }
 
-  return ticket.settlement_status !== 'lost' && ticket.settlement_status !== 'review';
+  return true;
 }
 
 export const MOVEMENT_LABELS = {
@@ -95,7 +97,29 @@ export function formatTicketDate(value) {
   return new Date(value).toLocaleString('es-VE', {
     dateStyle: 'short',
     timeStyle: 'short',
+    timeZone: VENEZUELA_TIMEZONE,
   });
+}
+
+/**
+ * Formatea la hora de un sorteo declarado por la apuesta.
+ */
+export function formatDrawTime(value) {
+  if (!value) {
+    return '—';
+  }
+
+  const date = new Date(value);
+
+  return `${date.toLocaleDateString('es-VE', {
+    dateStyle: 'short',
+    timeZone: VENEZUELA_TIMEZONE,
+  })} ${date.toLocaleTimeString('es-VE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: VENEZUELA_TIMEZONE,
+  })}`;
 }
 
 export const TICKET_CANCEL_WINDOW_MINUTES = 5;

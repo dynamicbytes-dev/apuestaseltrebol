@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
+import { VENEZUELA_TIMEZONE } from '../utils/parley';
 
 const STATUS_LABELS = {
   NS: 'Programado',
@@ -37,6 +38,7 @@ function formatTime(value) {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    timeZone: VENEZUELA_TIMEZONE,
   });
 }
 
@@ -46,6 +48,7 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString('es-VE', {
     dateStyle: 'short',
     timeStyle: 'short',
+    timeZone: VENEZUELA_TIMEZONE,
   });
 }
 

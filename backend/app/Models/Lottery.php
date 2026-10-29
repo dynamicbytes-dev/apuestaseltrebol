@@ -16,11 +16,13 @@ class Lottery extends Model
         'is_active',
         'payout_multiplier',
         'source_url',
+        'draw_times',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'payout_multiplier' => 'decimal:2',
+        'draw_times' => 'array',
     ];
 
     public function animals(): HasMany

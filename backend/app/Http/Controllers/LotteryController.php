@@ -43,6 +43,8 @@ class LotteryController extends Controller
             'name' => ['required', 'string', 'max:255', 'unique:lotteries,name'],
             'payout_multiplier' => ['sometimes', 'numeric', 'min:1', 'max:1000'],
             'source_url' => ['nullable', 'url', 'max:255'],
+            'draw_times' => ['nullable', 'array', 'max:12'],
+            'draw_times.*' => ['required', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/', 'distinct'],
             'animals' => ['sometimes', 'array', 'min:1', 'max:100'],
             // Texto de 1 o 2 dígitos: "0", "00", "1" ... "36". distinct:strict compara
             // como cadenas exactas (el modo laxo de PHP considera "0" == "00").
@@ -54,6 +56,10 @@ class LotteryController extends Controller
             'payout_multiplier.numeric' => 'El multiplicador de pago debe ser un número.',
             'payout_multiplier.min' => 'El multiplicador de pago debe ser al menos 1.',
             'payout_multiplier.max' => 'El multiplicador de pago no puede superar 1000.',
+            'draw_times.array' => 'Los horarios de sorteo deben ser una lista.',
+            'draw_times.max' => 'Una lotería no puede tener más de 12 horarios de sorteo.',
+            'draw_times.*.regex' => 'Cada horario debe tener el formato HH:MM (ej: 09:00, 19:30).',
+            'draw_times.*.distinct' => 'Hay horarios de sorteo repetidos.',
             'animals.min' => 'Debe registrar al menos un número con su animalito.',
             'animals.max' => 'Una lotería no puede tener más de 100 números.',
             'animals.*.number.required' => 'Cada animalito debe tener un número.',
@@ -80,6 +86,7 @@ class LotteryController extends Controller
                 'slug' => Str::slug($data['name']).'-'.Str::lower(Str::random(5)),
                 'payout_multiplier' => $data['payout_multiplier'] ?? 30,
                 'source_url' => $data['source_url'] ?? null,
+                'draw_times' => $this->normalizeDrawTimes($data['draw_times'] ?? null),
             ]);
 
             $animals = $source
@@ -123,6 +130,8 @@ class LotteryController extends Controller
             'is_active' => ['required', 'boolean'],
             'payout_multiplier' => ['sometimes', 'numeric', 'min:1', 'max:1000'],
             'source_url' => ['nullable', 'url', 'max:255'],
+            'draw_times' => ['nullable', 'array', 'max:12'],
+            'draw_times.*' => ['required', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/', 'distinct'],
         ], [
             'name.required' => 'El nombre de la lotería es obligatorio.',
             'name.unique' => 'Ya existe una lotería con ese nombre.',
@@ -131,11 +140,41 @@ class LotteryController extends Controller
             'payout_multiplier.min' => 'El multiplicador de pago debe ser al menos 1.',
             'payout_multiplier.max' => 'El multiplicador de pago no puede superar 1000.',
             'source_url.url' => 'La URL de origen no es válida.',
+            'draw_times.array' => 'Los horarios de sorteo deben ser una lista.',
+            'draw_times.max' => 'Una lotería no puede tener más de 12 horarios de sorteo.',
+            'draw_times.*.regex' => 'Cada horario debe tener el formato HH:MM (ej: 09:00, 19:30).',
+            'draw_times.*.distinct' => 'Hay horarios de sorteo repetidos.',
         ]);
+
+        if ($request->has('draw_times')) {
+            $data['draw_times'] = $this->normalizeDrawTimes($data['draw_times'] ?? null);
+        }
 
         $lottery->update($data);
 
         return response()->json(['data' => $lottery]);
+    }
+
+    /**
+     * Normaliza los horarios de sorteo: sin duplicados y en orden.
+     *
+     * @param  array<int, string>|null  $times
+     * @return array<int, string>|null
+     */
+    private function normalizeDrawTimes(?array $times): ?array
+    {
+        if ($times === null) {
+            return null;
+        }
+
+        $normalized = array_values(array_unique(array_map(
+            fn ($time) => substr(trim((string) $time), 0, 5),
+            $times
+        )));
+
+        sort($normalized);
+
+        return $normalized;
     }
 
     public function updateAnimals(Request $request, Lottery $lottery): JsonResponse
