@@ -36,6 +36,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/results', [ResultBoardController::class, 'index']);
     Route::get('/results/leagues', [ResultBoardController::class, 'leagues']);
     Route::get('/results/lotteries', [ResultBoardController::class, 'lotteries']);
+    Route::get('/results/reuniones', [ResultBoardController::class, 'reuniones']);
 });
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {

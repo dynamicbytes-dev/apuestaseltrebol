@@ -40,6 +40,7 @@ class ResultBoardController extends Controller
             'league' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', 'string', 'max:30'],
             'lottery_id' => ['nullable', 'integer'],
+            'meeting' => ['nullable', 'string', 'max:120'],
             'search' => ['nullable', 'string', 'max:100'],
         ], [
             'from.date_format' => 'La fecha inicial debe tener el formato AAAA-MM-DD.',
@@ -102,6 +103,10 @@ class ResultBoardController extends Controller
 
         if (! empty($filters['sport']) || ! empty($filters['league'])) {
             return 'parley';
+        }
+
+        if (! empty($filters['meeting'])) {
+            return 'hipismo';
         }
 
         $status = strtolower((string) ($filters['status'] ?? ''));
@@ -257,6 +262,7 @@ class ResultBoardController extends Controller
         return Race::with(['horses' => fn ($query) => $query->orderBy('number'), 'winner', 'second', 'third'])
             ->whereDate('race_date', '>=', $from)
             ->whereDate('race_date', '<=', $to)
+            ->when(! empty($filters['meeting']), fn ($query) => $query->where('meeting', $filters['meeting']))
             ->when(! empty($filters['status']) && in_array(strtolower($filters['status']), self::STATUS_HIPISMO, true),
                 fn ($query) => $query->where('status', $filters['status']))
             ->when(! empty($filters['search']), function ($query) use ($filters) {
@@ -368,5 +374,19 @@ class ResultBoardController extends Controller
             ]);
 
         return response()->json(['data' => $lotteries]);
+    }
+
+    /**
+     * Reuniones de hipismo, para el filtro de la cartelera.
+     */
+    public function reuniones(): JsonResponse
+    {
+        $reuniones = Race::whereNotNull('meeting')
+            ->distinct()
+            ->orderBy('meeting')
+            ->pluck('meeting')
+            ->values();
+
+        return response()->json(['data' => $reuniones]);
     }
 }
