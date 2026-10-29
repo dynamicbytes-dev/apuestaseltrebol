@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
+use App\Models\TicketMovement;
 use App\Models\TicketSelection;
 use App\Models\User;
+use App\Services\TicketMovementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,6 +18,10 @@ use Illuminate\Validation\Rule;
  */
 class TicketReviewController extends Controller
 {
+    public function __construct(private readonly TicketMovementService $movements)
+    {
+    }
+
     public function store(Request $request, Ticket $ticket): JsonResponse
     {
         /** @var User $supervisor */
@@ -41,6 +47,8 @@ class TicketReviewController extends Controller
             'notes.required' => 'Debe indicar el motivo de la decisión.',
         ]);
 
+        $previousStatus = $ticket->settlement_status;
+
         $ticket->update([
             'settlement_status' => $data['decision'],
             'settlement_note' => $data['notes'],
@@ -61,6 +69,18 @@ class TicketReviewController extends Controller
                 'settlement_note' => $data['notes'],
                 'settled_at' => now(),
             ]);
+
+        $this->movements->record(
+            $ticket,
+            $data['decision'] === Ticket::SETTLEMENT_WON
+                ? TicketMovement::TYPE_SETTLEMENT_WON
+                : TicketMovement::TYPE_SETTLEMENT_LOST,
+            $supervisor,
+            fromStatus: $previousStatus,
+            toStatus: $data['decision'],
+            notes: $data['notes'],
+            metadata: ['source' => 'manual_review'],
+        );
 
         return response()->json([
             'data' => $ticket->load(['selections', 'agency', 'taquilla']),

@@ -11,6 +11,7 @@ import RaceDetail from './pages/RaceDetail';
 import Parley from './pages/Parley';
 import SupervisorDashboard from './pages/SupervisorDashboard';
 import Taquillas from './pages/Taquillas';
+import Historial from './pages/Historial';
 import TaquillaHome from './pages/TaquillaHome';
 import NuevaApuesta from './pages/NuevaApuesta';
 import TaquillaTickets from './pages/TaquillaTickets';
@@ -98,6 +99,7 @@ function App() {
         >
           <Route index element={<SupervisorDashboard />} />
           <Route path="taquillas" element={<Taquillas />} />
+          <Route path="historial" element={<Historial />} />
         </Route>
 
         <Route

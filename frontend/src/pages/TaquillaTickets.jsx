@@ -19,6 +19,7 @@ import { getErrorMessage } from '../utils/errors';
 import {
   TICKET_TYPE_LABELS,
   TICKET_STATUS_LABELS,
+  MOVEMENT_LABELS,
   ticketStatusClass,
   settlementStatusLabel,
   settlementStatusClass,
@@ -39,7 +40,27 @@ export default function TaquillaTickets() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [movements, setMovements] = useState([]);
+  const [movementsLoading, setMovementsLoading] = useState(false);
   const [processingId, setProcessingId] = useState(null);
+
+  const loadMovements = useCallback(async (ticketId) => {
+    setMovementsLoading(true);
+    try {
+      const res = await api.get(`/taquilla/tickets/${ticketId}/movements`);
+      setMovements(res.data.data);
+    } catch {
+      setMovements([]);
+    } finally {
+      setMovementsLoading(false);
+    }
+  }, []);
+
+  const openDetail = (ticket) => {
+    setSelectedTicket(ticket);
+    setMovements([]);
+    loadMovements(ticket.id);
+  };
 
   const loadTickets = useCallback(async () => {
     try {
@@ -322,7 +343,7 @@ export default function TaquillaTickets() {
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
-                            onClick={() => setSelectedTicket(t)}
+                            onClick={() => openDetail(t)}
                             title="Ver detalle del ticket"
                           >
                             <Eye size={14} />
@@ -592,6 +613,43 @@ export default function TaquillaTickets() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#86efac', marginTop: '0.5rem' }}>
                     <span>Pagado en fecha:</span>
                     <span>{formatTicketDate(selectedTicket.paid_at)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Historial de movimientos */}
+              <div style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.4rem', fontWeight: 700 }}>
+                  MOVIMIENTOS:
+                </span>
+                {movementsLoading ? (
+                  <p className="empty" style={{ margin: 0 }}>Cargando movimientos...</p>
+                ) : movements.length === 0 ? (
+                  <p className="empty" style={{ margin: 0 }}>Sin movimientos registrados.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    {movements.map((m) => (
+                      <div
+                        key={m.id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          gap: '0.75rem',
+                          fontSize: '0.78rem',
+                          padding: '0.35rem 0.5rem',
+                          background: 'var(--bg-surface-hover)',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        <span style={{ color: 'var(--text-primary)' }}>
+                          {MOVEMENT_LABELS[m.type] ?? m.type}
+                        </span>
+                        <span style={{ color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+                          {formatTicketDate(m.created_at)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

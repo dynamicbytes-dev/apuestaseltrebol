@@ -9,6 +9,7 @@ import {
   X,
   Clock,
   Building,
+  History,
 } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import SessionTimer from '../components/SessionTimer';
@@ -19,6 +20,7 @@ import '../styles/admin.css';
 const navItems = [
   { to: '/supervisor', label: 'Panel Supervisor', end: true, icon: LayoutDashboard },
   { to: '/supervisor/taquillas', label: 'Gestión de Taquillas', icon: Store },
+  { to: '/supervisor/historial', label: 'Historial de Tickets', icon: History },
 ];
 
 export default function SupervisorLayout() {

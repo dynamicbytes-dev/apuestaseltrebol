@@ -13,6 +13,7 @@ use App\Http\Controllers\SupervisorDashboardController;
 use App\Http\Controllers\TaquillaController;
 use App\Http\Controllers\TaquillaDashboardController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TicketMovementController;
 use App\Http\Controllers\TicketReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -78,6 +79,9 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->group(function 
     Route::delete('/taquillas/{taquilla}', [TaquillaController::class, 'destroy']);
 
     Route::post('/tickets/{ticket}/review', [TicketReviewController::class, 'store']);
+
+    Route::get('/tickets', [TicketMovementController::class, 'agencyTickets']);
+    Route::get('/tickets/{ticket}/movements', [TicketMovementController::class, 'agencyTicketMovements']);
 });
 
 Route::middleware(['auth', 'taquilla'])->prefix('taquilla')->group(function () {
@@ -88,4 +92,5 @@ Route::middleware(['auth', 'taquilla'])->prefix('taquilla')->group(function () {
     Route::post('/tickets', [TicketController::class, 'store']);
     Route::post('/tickets/{ticket}/pay', [TicketController::class, 'pay']);
     Route::post('/tickets/{ticket}/cancel', [TicketController::class, 'cancel']);
+    Route::get('/tickets/{ticket}/movements', [TicketMovementController::class, 'ticketMovements']);
 });

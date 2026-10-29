@@ -55,6 +55,15 @@ export function canPayTicket(ticket) {
   return ticket.settlement_status !== 'lost' && ticket.settlement_status !== 'review';
 }
 
+export const MOVEMENT_LABELS = {
+  created: 'Ticket emitido',
+  paid: 'Premio pagado',
+  cancelled: 'Ticket anulado',
+  settlement_won: 'Jugada ganadora',
+  settlement_lost: 'Jugada perdedora',
+  review: 'Enviado a revisión',
+};
+
 export function ticketStatusClass(status) {
   if (status === 'paid') {
     return 'status-finished';

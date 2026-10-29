@@ -7,9 +7,11 @@ use App\Models\Lottery;
 use App\Models\LotteryAnimal;
 use App\Models\Race;
 use App\Models\Ticket;
+use App\Models\TicketMovement;
 use App\Models\TicketSelection;
 use App\Models\User;
 use App\Services\SportsSettlementService;
+use App\Services\TicketMovementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,8 +21,10 @@ use Illuminate\Validation\ValidationException;
 
 class TicketController extends Controller
 {
-    public function __construct(private readonly SportsSettlementService $settlement)
-    {
+    public function __construct(
+        private readonly SportsSettlementService $settlement,
+        private readonly TicketMovementService $movements,
+    ) {
     }
 
     public function catalog(): JsonResponse
@@ -178,6 +182,19 @@ class TicketController extends Controller
             return $ticket;
         });
 
+        $this->movements->record(
+            $ticket,
+            TicketMovement::TYPE_CREATED,
+            $taquilla,
+            toStatus: Ticket::STATUS_PENDING,
+            amount: $stake,
+            metadata: [
+                'type' => $base['type'],
+                'total_odds' => round($prepared['odds'], 4),
+                'potential_payout' => $potentialPayout,
+            ],
+        );
+
         return response()->json([
             'data' => $ticket->load(['selections', 'agency', 'taquilla']),
         ], 201);
@@ -297,6 +314,16 @@ class TicketController extends Controller
             'notes' => $data['notes'] ?? $ticket->notes,
         ]);
 
+        $this->movements->record(
+            $ticket,
+            TicketMovement::TYPE_PAID,
+            auth('api')->user(),
+            fromStatus: Ticket::STATUS_PENDING,
+            toStatus: Ticket::STATUS_PAID,
+            amount: round((float) $data['paid_amount'], 2),
+            notes: $data['notes'] ?? null,
+        );
+
         return response()->json([
             'data' => $ticket->load(['selections', 'agency', 'taquilla']),
         ]);
@@ -324,6 +351,15 @@ class TicketController extends Controller
             'cancelled_at' => now(),
         ]);
 
+        $this->movements->record(
+            $ticket,
+            TicketMovement::TYPE_CANCELLED,
+            auth('api')->user(),
+            fromStatus: Ticket::STATUS_PENDING,
+            toStatus: Ticket::STATUS_CANCELLED,
+            amount: (float) $ticket->stake,
+        );
+
         return response()->json([
             'data' => $ticket->load(['selections', 'agency', 'taquilla']),
         ]);
@@ -348,6 +384,7 @@ class TicketController extends Controller
         }
 
         $settlement = $this->settlement->settle($ticket->loadMissing('selections'));
+        $previousStatus = $ticket->settlement_status;
 
         foreach ($settlement['legs'] as $leg) {
             $leg['selection']->update([
@@ -366,7 +403,29 @@ class TicketController extends Controller
             'settlement_source' => 'auto',
         ]);
 
+        // Solo se registra el movimiento cuando el estado cambia, para no
+        // duplicar la entrada en cada intento de cobro.
+        if ($settlement['status'] !== $previousStatus) {
+            $this->movements->record(
+                $ticket,
+                $this->movementTypeForSettlement($settlement['status']),
+                auth('api')->user(),
+                fromStatus: $previousStatus,
+                toStatus: $settlement['status'],
+                notes: $settlement['note'],
+            );
+        }
+
         return $settlement;
+    }
+
+    private function movementTypeForSettlement(string $status): string
+    {
+        return match ($status) {
+            Ticket::SETTLEMENT_WON => TicketMovement::TYPE_SETTLEMENT_WON,
+            Ticket::SETTLEMENT_LOST => TicketMovement::TYPE_SETTLEMENT_LOST,
+            default => TicketMovement::TYPE_REVIEW,
+        };
     }
 
     private function prepareAnimalitos(Request $request): array    {
