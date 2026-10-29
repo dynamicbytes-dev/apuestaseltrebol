@@ -26,3 +26,18 @@ Artisan::command('inspire', function () {
 Schedule::command('fetch:animalitos')
     ->cron('*/10 9-19 * * *')
     ->withoutOverlapping();
+
+/*
+|--------------------------------------------------------------------------
+| Liquidacion de tickets
+|--------------------------------------------------------------------------
+|
+| Liquida los tickets de parley pendientes contra el resultado oficial, para
+| que el estado de las jugadas se actualice solo. El proveedor limita las
+| peticiones por minuto, asi que la corrida es pausada.
+|
+*/
+
+Schedule::command('tickets:settle')
+    ->everyTenMinutes()
+    ->withoutOverlapping();

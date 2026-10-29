@@ -34,12 +34,14 @@ class AnalyticsController extends Controller
         $summary = $this->analytics->agencySummary(
             $supervisor->agency_id,
             $data['from'] ?? null,
-            $data['to'] ?? null
+            $data['to'] ?? null,
+            $supervisor->id
         );
 
         $agency = Agency::find($supervisor->agency_id);
 
         $summary['scope']['agency_name'] = $agency?->name;
+        $summary['scope']['supervisor_name'] = $supervisor->name;
 
         return response()->json(['data' => $summary]);
     }

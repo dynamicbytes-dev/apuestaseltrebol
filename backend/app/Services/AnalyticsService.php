@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Ticket;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 /**
  * Agregados de operación para el análisis por agencia.
@@ -17,25 +18,48 @@ class AnalyticsService
     /**
      * Resumen de una agencia.
      */
-    public function agencySummary(?int $agencyId, ?string $from, ?string $to): array
+    public function agencySummary(?int $agencyId, ?string $from, ?string $to, ?int $supervisorId = null): array
     {
         [$from, $to] = $this->resolvePeriod($from, $to);
 
-        $base = $this->baseQuery($agencyId, $from, $to);
+        $base = $this->baseQuery($agencyId, $from, $to, $supervisorId);
+
+        $totals = $this->totals(clone $base);
 
         return [
             'scope' => [
                 'agency_id' => $agencyId,
+                'supervisor_id' => $supervisorId,
             ],
             'period' => [
                 'from' => $from,
                 'to' => $to,
             ],
-            'totals' => $this->totals(clone $base),
+            'totals' => $totals,
             'by_type' => $this->byType(clone $base),
             'by_status' => $this->byStatus(clone $base),
             'daily' => $this->daily(clone $base),
             'settlement' => $this->bySettlement(clone $base),
+            'share' => $this->supervisorShare($totals),
+        ];
+    }
+
+    /**
+     * Porcentaje que le corresponde al supervisor sobre las ventas de sus
+     * taquillas.
+     *
+     * @param  array<string, mixed>  $totals
+     * @return array{percentage: float, base: float, amount: float}
+     */
+    private function supervisorShare(array $totals): array
+    {
+        $percentage = (float) config('business.supervisor_share', 0.13);
+        $base = round((float) ($totals['stake'] ?? 0), 2);
+
+        return [
+            'percentage' => $percentage * 100,
+            'base' => $base,
+            'amount' => round($base * $percentage, 2),
         ];
     }
 
@@ -82,12 +106,17 @@ class AnalyticsService
         return [$from, $to];
     }
 
-    private function baseQuery(?int $agencyId, string $from, string $to): Builder
+    private function baseQuery(?int $agencyId, string $from, string $to, ?int $supervisorId = null): Builder
     {
         $query = Ticket::query();
 
         if ($agencyId !== null) {
             $query->where('agency_id', $agencyId);
+        }
+
+        // El alcance del supervisor son las taquillas que tiene a su cargo.
+        if ($supervisorId !== null) {
+            $query->where('supervisor_id', $supervisorId);
         }
 
         return $query->whereDate('created_at', '>=', $from)
@@ -193,7 +222,30 @@ class AnalyticsService
             ->all();
     }
 
-    private function byAgency(string $from, string $to): array
+    /**
+     * Ventas y porciento de cada agencia.
+     *
+     * Una agencia puede tener tantas taquillas como quiera: las ventas de
+     * la agencia son la suma de las de todas ellas.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function agencySales(?string $from, ?string $to): array
+    {
+        [$from, $to] = $this->resolvePeriod($from, $to);
+
+        $percentage = (float) config('business.agency_share', 0.015);
+
+        return $this->byAgency($from, $to)
+            ->map(fn (array $row) => [
+                ...$row,
+                'share_percentage' => $percentage * 100,
+                'share_amount' => round($row['stake'] * $percentage, 2),
+            ])
+            ->all();
+    }
+
+    private function byAgency(string $from, string $to): Collection
     {
         return Ticket::query()
             ->join('agencies', 'agencies.id', '=', 'tickets.agency_id')
@@ -215,6 +267,6 @@ class AnalyticsService
                 'paid' => round((float) $row->paid, 2),
                 'net' => round((float) $row->stake - (float) $row->paid, 2),
             ])
-            ->all();
+            ->values();
     }
 }

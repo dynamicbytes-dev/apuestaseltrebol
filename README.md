@@ -185,14 +185,44 @@ Para eso están las correcciones manuales (`parley_event_overrides`): el adminis
 
 **Límite del proveedor**: el plan admite 10 peticiones por minuto. Los resultados se cachean 10 minutos y la cartelera avisa en pantalla cuando algún deporte no se pudo consultar por ese límite.
 
-## Analíticas e historial
+## Analíticas, comisiones e historial
 
-- `GET /api/supervisor/analytics` — métricas de la agencia del supervisor.
+- `GET /api/supervisor/analytics` — métricas de las taquillas a cargo del supervisor.
 - `GET /api/admin/analytics` — consolidado global con desglose por agencia.
 
 Ambos aceptan `?from=AAAA-MM-DD&to=AAAA-MM-DD` (por defecto, los últimos 30 días) y devuelven: tickets emitidos, total apostado, total pagado, resultado (apostado − pagado), exposición pendiente, desglose por tipo de juego, por estado, serie diaria y estadísticas de liquidación del parley.
 
+**Comisiones**, calculadas sobre las ventas (el total apostado):
+
+| Concepto | Base | Porcentaje | Configuración |
+|---|---|---|---|
+| Agencia | La suma de las ventas de **todas** sus taquillas | **1.5%** | `AGENCY_SHARE` (por defecto `0.015`) |
+| Supervisor | La suma de las ventas de **las taquillas a su cargo** | **13%** | `SUPERVISOR_SHARE` (por defecto `0.13`) |
+
+- El módulo **Agencias** del administrador muestra, por agencia, las ventas del periodo y el 1.5% que corresponde, con un selector de fechas.
+- El módulo **Analíticas** del supervisor muestra su participación: el 13% de las ventas de sus taquillas.
+
 El historial de movimientos (`ticket_movements`) registra cada emisión, pago, anulación y cambio de liquidación con su autor, estado origen/destino, monto y nota.
+
+### Estado de las jugadas
+
+Las listas de tickets (taquilla y supervisor) muestran **un solo estado** por ticket:
+
+- Pagado / Anulado, si el ticket ya está pagado o anulado.
+- **Ganador / No ganador**, si ya se conoce el resultado oficial.
+- Pendiente de resultado o En revisión, si todavía no se puede determinar.
+
+El estado **se actualiza solo**: al listar tickets, la aplicación liquida en lote las modalidades locales (animalitos e hipismo) con dos consultas, de modo que en cuanto el administrador registra un resultado, el ticket pasa a ganador o no ganador sin tocar nada. El parley se liquida contra el proveedor de resultados, y el comando programado `tickets:settle` lo hace automáticamente cada 10 minutos.
+
+### Sobre la revisión manual de las jugadas
+
+Las categorías de partido, cuarto e inning **ya no admiten apuesta**: no están entre los mercados tradicionales que se ofrecen, así que no hay nada que revisar. Entre los que sí se ofrecen, todos se liquidan solos con la API:
+
+- Los totales de un solo equipo (*Total - Home*, *Total - Away*) se liquidan contra ese equipo, no contra la suma de los dos.
+- Los totales de una parte del partido no se liquidan con el total del partido: van a revisión manual.
+- El **hándicap asiático** se liquida con el marcador final, incluyendo el reparto de las líneas de cuarto (por ejemplo, −1.25 se parte entre −1 y −1.5).
+
+La revisión manual queda solo para casos que la API no puede resolver (por ejemplo, un partido aplazado o un evento que el proveedor ya no devuelve).
 
 ## Resultados de animalitos
 
@@ -256,7 +286,7 @@ La sesión usa tokens JWT. La duración se toma de `JWT_TTL` (en minutos, por de
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `GET` `POST` | `/agencies` | Listar y registrar agencias |
+| `GET` `POST` | `/agencies` | Listar agencias (con ventas y comisión) y registrar |
 | `PUT` `DELETE` | `/agencies/{agency}` | Editar y eliminar agencia |
 | `PATCH` | `/agencies/{agency}/limits` | Topes por agencia |
 | `GET` `POST` | `/supervisors` | Listar y registrar supervisores |
@@ -372,3 +402,5 @@ La CI (`.github/workflows/ci.yml`) corre en cada push y en cada PR contra `main`
 - [x] Sesión configurable con renovación automática
 - [x] Planificador operativo (sincronización de resultados de loterías)
 - [x] Zona horaria de la operación en hora de Caracas
+- [x] KPI de comisiones por agencia (1.5%) y por supervisor (13%)
+- [x] Un solo estado por ticket, que se actualiza solo al registrar resultados

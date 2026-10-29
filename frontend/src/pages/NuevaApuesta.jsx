@@ -64,7 +64,6 @@ export default function NuevaApuesta() {
 
   // Animalitos state
   const [lotteryId, setLotteryId] = useState('');
-  const [animalId, setAnimalId] = useState('');
   const [selectedLottery, setSelectedLottery] = useState(null);
   // Sorteo al que se apuesta: la fecha y la hora las elige la taquilla.
   const [drawDate, setDrawDate] = useState(todayISO());
@@ -165,10 +164,6 @@ export default function NuevaApuesta() {
     setDrawTime(disponible ?? (lot?.draw_times ?? [])[0] ?? '');
   };
 
-  const handleAnimalChange = (id) => {
-    setAnimalId(id);
-  };
-
   // Filas de la apuesta de animalitos
   const addAnimalRow = () => {
     setAnimalRows((prev) => [...prev, { animal_id: '', amount: '' }]);
@@ -187,18 +182,6 @@ export default function NuevaApuesta() {
     () => animalRows.reduce((acc, row) => acc + (Number(row.amount) || 0), 0),
     [animalRows]
   );
-
-  // Horarios de la lotería que ya tienen resultado oficial: no se puede
-  // apostar a un sorteo cerrado.
-  const closedDraws = useMemo(() => {
-    const set = new Set();
-    (catalog?.resolved_draws ?? []).forEach((d) => {
-      if (String(d.lottery_id) === String(lotteryId)) {
-        set.add(d.sorteo_at);
-      }
-    });
-    return set;
-  }, [catalog, lotteryId]);
 
   const handleRaceChange = (id) => {
     setRaceId(id);
@@ -1028,6 +1011,10 @@ export default function NuevaApuesta() {
 
                 {parleyEventsLoading ? (
                   <p className="empty">Cargando eventos desde el proveedor deportivo...</p>
+                ) : parleyEventsError ? (
+                  <div className="alert alert-error" style={{ marginBottom: 0, fontSize: '0.88rem' }}>
+                    {parleyEventsError}
+                  </div>
                 ) : parleyEvents.length === 0 ? (
                   <p className="empty">No hay partidos disponibles para la fecha y deporte seleccionados.</p>
                 ) : filteredParleyEvents.length === 0 ? (
@@ -1499,7 +1486,7 @@ export default function NuevaApuesta() {
                             <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                               {isParley ? '⚽ Equipo Apostado:' : isHipismo ? '🏇 Ejemplar Apostado:' : '🐾 Jugada Apostada:'}
                             </span>
-                            <strong style={{ fontSize: '0.95rem', color: '#ffffff' }}>
+                            <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
                               {betTeam || sel.selection_label}
                             </strong>
                           </div>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ticket;
 use App\Models\TicketMovement;
 use App\Models\User;
+use App\Services\TicketSettlementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,6 +15,8 @@ use Illuminate\Validation\Rule;
  */
 class TicketMovementController extends Controller
 {
+    public function __construct(private readonly TicketSettlementService $settlements) {}
+
     /**
      * Movimientos de un ticket propio de la taquilla.
      */
@@ -70,10 +73,6 @@ class TicketMovementController extends Controller
             $query->where('type', $data['type']);
         }
 
-        if (! empty($data['settlement_status'])) {
-            $query->where('settlement_status', $data['settlement_status']);
-        }
-
         if (! empty($data['search'])) {
             // LOWER + LIKE funciona igual en PostgreSQL y en SQLite.
             $query->whereRaw('LOWER(code) LIKE ?', ['%'.mb_strtolower($data['search']).'%']);
@@ -88,6 +87,20 @@ class TicketMovementController extends Controller
         }
 
         $tickets = $query->limit(200)->get();
+
+        // Se liquidan las modalidades locales para que el estado de la
+        // jugada salga actualizado: en cuanto se registra un resultado, el
+        // ticket pasa a ganador o no ganador sin tocar nada.
+        $this->settlements->settleLocal($tickets);
+
+        // El filtro de liquidacion se aplica despues de liquidar: un ticket
+        // que acaba de pasar a perdedor debe aparecer al filtrar por
+        // "no ganador".
+        if (! empty($data['settlement_status'])) {
+            $tickets = $tickets
+                ->filter(fn (Ticket $ticket) => $ticket->settlement_status === $data['settlement_status'])
+                ->values();
+        }
 
         return response()->json([
             'data' => $tickets,

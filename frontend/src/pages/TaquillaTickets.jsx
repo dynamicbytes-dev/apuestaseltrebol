@@ -20,7 +20,7 @@ import {
   TICKET_TYPE_LABELS,
   TICKET_STATUS_LABELS,
   MOVEMENT_LABELS,
-  ticketStatusClass,
+  ticketSingleStatus,
   settlementStatusLabel,
   settlementStatusClass,
   canPayTicket,
@@ -351,19 +351,9 @@ export default function TaquillaTickets() {
                         </strong>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
-                          <span className={ticketStatusClass(t.status)}>
-                            {TICKET_STATUS_LABELS[t.status] ?? t.status}
-                          </span>
-                          {t.settlement_status && t.settlement_status !== 'pending' && (
-                            <span
-                              className={settlementStatusClass(t.settlement_status)}
-                              title={t.settlement_note || undefined}
-                            >
-                              {settlementStatusLabel(t.settlement_status)}
-                            </span>
-                          )}
-                        </div>
+                        <span className={ticketSingleStatus(t).className}>
+                          {ticketSingleStatus(t).label}
+                        </span>
                       </td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
                         {formatTicketDate(t.created_at)}
@@ -616,7 +606,7 @@ export default function TaquillaTickets() {
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             {isParley ? '⚽ Equipo Apostado:' : isHipismo ? '🏇 Ejemplar Apostado:' : '🐾 Jugada Apostada:'}
                           </span>
-                          <strong style={{ fontSize: '0.95rem', color: '#ffffff' }}>
+                          <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
                             {betTeam || sel.selection_label}
                           </strong>
                         </div>
