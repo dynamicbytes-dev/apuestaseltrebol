@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
 import { defaultAnimalRows } from '../utils/animalitos';
-import { todayISO } from '../utils/parley';
+import { todayISO, VENEZUELA_TIMEZONE } from '../utils/parley';
 
 const emptyForm = () => ({ name: '', animals: defaultAnimalRows() });
 
@@ -14,6 +14,7 @@ function formatSorteoDate(value) {
     return d.toLocaleString('es-VE', {
       dateStyle: 'short',
       timeStyle: 'short',
+      timeZone: VENEZUELA_TIMEZONE,
     });
   } catch {
     return value;

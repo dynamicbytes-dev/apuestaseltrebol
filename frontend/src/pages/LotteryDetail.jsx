@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Plus, X } from 'lucide-react';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
 
@@ -8,6 +9,8 @@ export default function LotteryDetail() {
   const [lottery, setLottery] = useState(null);
   const [animals, setAnimals] = useState([]);
   const [payoutMultiplier, setPayoutMultiplier] = useState(null);
+  const [drawTimes, setDrawTimes] = useState([]);
+  const [newDrawTime, setNewDrawTime] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -19,6 +22,7 @@ export default function LotteryDetail() {
       setLottery(response.data.data);
       setAnimals(response.data.data.animals);
       setPayoutMultiplier(response.data.data.payout_multiplier);
+      setDrawTimes(response.data.data.draw_times ?? []);
       setError(null);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -35,6 +39,28 @@ export default function LotteryDetail() {
     setAnimals((current) =>
       current.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
     );
+  };
+
+  const addDrawTime = () => {
+    const value = newDrawTime.trim();
+
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+      setError('El horario debe tener el formato HH:MM (ej: 09:00, 19:30).');
+      return;
+    }
+
+    if (drawTimes.includes(value)) {
+      setError('Ese horario ya está en la lista.');
+      return;
+    }
+
+    setDrawTimes((prev) => [...prev, value].sort());
+    setNewDrawTime('');
+    setError(null);
+  };
+
+  const removeDrawTime = (value) => {
+    setDrawTimes((prev) => prev.filter((item) => item !== value));
   };
 
   const handleSave = async () => {
@@ -64,6 +90,7 @@ export default function LotteryDetail() {
         name: lottery.name,
         is_active: lottery.is_active,
         payout_multiplier: Number(payoutMultiplier) ?? 30,
+        draw_times: drawTimes,
       });
       setSuccess('Datos de la lotería actualizados correctamente.');
       await loadLottery();
@@ -128,11 +155,81 @@ export default function LotteryDetail() {
           placeholder="30 (por defecto)"
           style={{ width: '100%', marginBottom: '0.5rem' }}
         />
+
+        <label className="form-label" style={{ marginTop: '0.75rem', display: 'block' }}>
+          Horarios de sorteo
+        </label>
+        <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 0.5rem' }}>
+          Las horas del día en las que se juega esta lotería. Son las que la taquilla
+          puede elegir al apostar: sin horarios, la lotería no admite apuestas.
+        </p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.6rem' }}>
+          {drawTimes.length === 0 ? (
+            <span style={{ fontSize: '0.82rem', color: '#f59e0b' }}>
+              Sin horarios configurados: esta lotería no admite apuestas.
+            </span>
+          ) : (
+            drawTimes.map((hora) => (
+              <span
+                key={hora}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid #38bdf8',
+                  color: '#7dd3fc',
+                  padding: '0.2rem 0.35rem 0.2rem 0.6rem',
+                  borderRadius: '12px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.82rem',
+                }}
+              >
+                {hora}
+                <button
+                  type="button"
+                  onClick={() => removeDrawTime(hora)}
+                  title="Quitar horario"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    padding: 0,
+                  }}
+                >
+                  <X size={13} />
+                </button>
+              </span>
+            ))
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            className="input"
+            type="time"
+            value={newDrawTime}
+            onChange={(e) => setNewDrawTime(e.target.value)}
+            style={{ maxWidth: '160px' }}
+          />
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={addDrawTime}
+          >
+            <Plus size={14} />
+            <span>Agregar horario</span>
+          </button>
+        </div>
+
         <button
           className="btn btn-primary"
           onClick={handleSaveLottery}
           disabled={saving}
-          style={{ marginTop: '0.25rem' }}
+          style={{ marginTop: '0.75rem' }}
         >
           {saving ? 'Guardando...' : 'Guardar datos'}
         </button>

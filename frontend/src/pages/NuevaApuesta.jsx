@@ -22,6 +22,7 @@ import {
   TICKET_TYPE_LABELS,
   formatAmount,
   formatTicketDate,
+  formatDrawTime,
 } from '../utils/tickets';
 import {
   todayISO,
@@ -31,6 +32,7 @@ import {
   eventScore,
   resolveBetTeam,
 } from '../utils/parley';
+import { isDrawPast, isDrawClosed, formatDrawLabel } from '../utils/draws';
 
 function formatLimit(value) {
   if (value === null || value === undefined || value === '') {
@@ -62,6 +64,11 @@ export default function NuevaApuesta() {
   const [lotteryId, setLotteryId] = useState('');
   const [animalId, setAnimalId] = useState('');
   const [selectedLottery, setSelectedLottery] = useState(null);
+  // Sorteo al que se apuesta: la fecha y la hora las elige la taquilla.
+  const [drawDate, setDrawDate] = useState(todayISO());
+  const [drawTime, setDrawTime] = useState('');
+  // Filas de la apuesta: un animalito con su monto.
+  const [animalRows, setAnimalRows] = useState([]);
 
   // Hipismo state
   const [raceId, setRaceId] = useState('');
@@ -134,6 +141,8 @@ export default function NuevaApuesta() {
     setStake('');
     setLotteryId('');
     setAnimalId('');
+    setAnimalRows([]);
+    setDrawTime('');
     setRaceId('');
     setHorseId('');
     setSelections([]);
@@ -145,13 +154,49 @@ export default function NuevaApuesta() {
   const handleLotteryChange = (id) => {
     setLotteryId(id);
     setAnimalId('');
+    setAnimalRows([]);
     const lot = catalog?.lotteries?.find((l) => String(l.id) === String(id));
     setSelectedLottery(lot || null);
+
+    // Se propone el primer horario de la lotería que todavía no pasó.
+    const disponible = (lot?.draw_times ?? []).find((hora) => !isDrawPast(drawDate, hora));
+    setDrawTime(disponible ?? (lot?.draw_times ?? [])[0] ?? '');
   };
 
   const handleAnimalChange = (id) => {
     setAnimalId(id);
   };
+
+  // Filas de la apuesta de animalitos
+  const addAnimalRow = () => {
+    setAnimalRows((prev) => [...prev, { animal_id: '', amount: '' }]);
+  };
+
+  const updateAnimalRow = (index, patch) => {
+    setAnimalRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  };
+
+  const removeAnimalRow = (index) => {
+    setAnimalRows((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Total de la apuesta de animalitos: la suma de los montos por animalito.
+  const animalitosTotal = useMemo(
+    () => animalRows.reduce((acc, row) => acc + (Number(row.amount) || 0), 0),
+    [animalRows]
+  );
+
+  // Horarios de la lotería que ya tienen resultado oficial: no se puede
+  // apostar a un sorteo cerrado.
+  const closedDraws = useMemo(() => {
+    const set = new Set();
+    (catalog?.resolved_draws ?? []).forEach((d) => {
+      if (String(d.lottery_id) === String(lotteryId)) {
+        set.add(d.sorteo_at);
+      }
+    });
+    return set;
+  }, [catalog, lotteryId]);
 
   const handleRaceChange = (id) => {
     setRaceId(id);
@@ -310,9 +355,11 @@ export default function NuevaApuesta() {
 
   const currentOdds = computeOdds();
   const amountNumber = Number(stake) || 0;
-  const potentialPayout = amountNumber > 0 && currentOdds > 0 ? Number((amountNumber * currentOdds).toFixed(2)) : 0;
+  // En animalitos el monto es la suma de los montos de cada animalito.
+  const stakeAmount = type === 'animalitos' ? animalitosTotal : amountNumber;
+  const potentialPayout = stakeAmount > 0 && currentOdds > 0 ? Number((stakeAmount * currentOdds).toFixed(2)) : 0;
 
-  const overMaxBet = maxBet !== null && amountNumber > Number(maxBet);
+  const overMaxBet = maxBet !== null && stakeAmount > Number(maxBet);
   const overMaxPayout = maxPayout !== null && potentialPayout > Number(maxPayout);
 
   const handleSubmit = async (e) => {
@@ -320,7 +367,7 @@ export default function NuevaApuesta() {
     setError(null);
     setSuccess(null);
 
-    if (!amountNumber || amountNumber <= 0) {
+    if (type !== 'animalitos' && (!amountNumber || amountNumber <= 0)) {
       setError('Ingresa un monto de apuesta válido.');
       return;
     }
@@ -336,15 +383,39 @@ export default function NuevaApuesta() {
     let payload = null;
 
     if (type === 'animalitos') {
-      if (!lotteryId || !animalId) {
-        setError('Debes seleccionar la lotería y el número a jugar.');
+      if (!lotteryId || !drawDate || !drawTime) {
+        setError('Debes seleccionar la lotería y el sorteo al que apuestas.');
+        return;
+      }
+      if (animalRows.length === 0) {
+        setError('Debes agregar al menos un animalito a la jugada.');
+        return;
+      }
+      if (animalRows.some((row) => !row.animal_id)) {
+        setError('Cada fila debe tener un animalito seleccionado.');
+        return;
+      }
+      if (animalRows.some((row) => !(Number(row.amount) > 0))) {
+        setError('Cada animalito debe tener un monto mayor que cero.');
+        return;
+      }
+      if (new Set(animalRows.map((row) => row.animal_id)).size !== animalRows.length) {
+        setError('No puedes repetir el mismo animalito en un ticket.');
+        return;
+      }
+      if (animalitosTotal <= 0) {
+        setError('Ingresa un monto de apuesta válido.');
         return;
       }
       payload = {
         type,
-        stake: amountNumber,
         lottery_id: Number(lotteryId),
-        lottery_animal_id: Number(animalId),
+        sorteo_date: drawDate,
+        sorteo_time: drawTime,
+        selections: animalRows.map((row) => ({
+          lottery_animal_id: Number(row.animal_id),
+          amount: Number(row.amount),
+        })),
       };
     } else if (type === 'hipismo') {
       if (!raceId || !horseId) {
@@ -378,6 +449,7 @@ export default function NuevaApuesta() {
       setStake('');
       setLotteryId('');
       setAnimalId('');
+      setAnimalRows([]);
       setRaceId('');
       setHorseId('');
       setSelections([]);
@@ -490,7 +562,7 @@ export default function NuevaApuesta() {
           {/* SECCIÓN 1: ANIMALITOS */}
           {type === 'animalitos' && (
             <section className="card">
-              <h2 className="card-title">Selección de Lotería y Número</h2>
+              <h2 className="card-title">Lotería y Sorteo</h2>
               <div className="form-row">
                 <div className="form-field">
                   <label htmlFor="lottery-select">Lotería Activa</label>
@@ -511,30 +583,159 @@ export default function NuevaApuesta() {
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="animal-select">Número / Animalito</label>
+                  <label htmlFor="draw-time-select">Horario del Sorteo</label>
                   <select
-                    id="animal-select"
+                    id="draw-time-select"
                     className="input"
-                    value={animalId}
-                    onChange={(e) => handleAnimalChange(e.target.value)}
+                    value={drawTime}
+                    onChange={(e) => setDrawTime(e.target.value)}
                     disabled={!selectedLottery}
                     required
                   >
                     <option value="">
-                      {selectedLottery ? '-- Selecciona un número --' : 'Primero elige una lotería'}
+                      {selectedLottery ? '-- Selecciona un horario --' : 'Primero elige una lotería'}
                     </option>
-                    {selectedLottery?.animals?.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        N° {a.number} - {a.animal}
-                      </option>
-                    ))}
+                    {(selectedLottery?.draw_times ?? []).map((hora) => {
+                      const pasado = isDrawPast(drawDate, hora);
+                      const cerrado = isDrawClosed(catalog?.resolved_draws, lotteryId, drawDate, hora);
+
+                      return (
+                        <option key={hora} value={hora} disabled={pasado || cerrado}>
+                          {hora}
+                          {cerrado ? ' — sorteado' : pasado ? ' — ya pasó' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="draw-date-input">Fecha del Sorteo</label>
+                  <input
+                    id="draw-date-input"
+                    className="input"
+                    type="date"
+                    value={drawDate}
+                    onChange={(e) => setDrawDate(e.target.value)}
+                    required
+                  />
                 </div>
               </div>
 
-              {selectedLottery && (
+              {selectedLottery && (selectedLottery.draw_times ?? []).length === 0 && (
+                <div className="alert alert-info" style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>
+                  Esta lotería no tiene horarios de sorteo configurados. Contacta al administrador.
+                </div>
+              )}
+
+              {selectedLottery && drawTime && (
                 <div style={{ marginTop: '0.75rem', fontSize: '0.88rem', color: '#a7f3d0' }}>
-                  Multiplicador garantizado: <strong>x{Number(selectedLottery.payout_multiplier).toFixed(2)}</strong>
+                  Sorteo elegido: <strong>{formatDrawLabel(drawDate, drawTime)}</strong>
+                  {' · '}Multiplicador garantizado:{' '}
+                  <strong>x{Number(selectedLottery.payout_multiplier).toFixed(2)}</strong>
+                </div>
+              )}
+
+              {/* ANIMALITOS Y MONTOS */}
+              {selectedLottery && (
+                <div style={{ marginTop: '1.25rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '0.6rem',
+                      gap: '0.75rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <h3 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                      Animalitos y montos
+                    </h3>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={addAnimalRow}
+                      disabled={animalRows.length >= 20}
+                    >
+                      <PlusCircle size={14} />
+                      <span>Agregar animalito</span>
+                    </button>
+                  </div>
+
+                  {animalRows.length === 0 ? (
+                    <p className="empty" style={{ margin: 0 }}>
+                      Agrega al menos un animalito con su monto.
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {animalRows.map((row, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 150px 40px',
+                            gap: '0.6rem',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <select
+                            className="input"
+                            value={row.animal_id}
+                            onChange={(e) => updateAnimalRow(index, { animal_id: e.target.value })}
+                            required
+                          >
+                            <option value="">-- Animalito --</option>
+                            {selectedLottery?.animals?.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                N° {a.number} - {a.animal}
+                              </option>
+                            ))}
+                          </select>
+
+                          <input
+                            className="input"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={row.amount}
+                            onChange={(e) => updateAnimalRow(index, { amount: e.target.value })}
+                            placeholder="Monto"
+                            required
+                          />
+
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => removeAnimalRow(index)}
+                            title="Quitar animalito"
+                            style={{ padding: '0.25rem 0.45rem' }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: '0.85rem',
+                      padding: '0.6rem 0.85rem',
+                      background: 'var(--bg-input)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.9rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-secondary)' }}>Total de la apuesta</span>
+                    <strong style={{ fontFamily: 'var(--font-mono)', color: '#34d399', fontSize: '1.05rem' }}>
+                      {formatAmount(animalitosTotal)}
+                    </strong>
+                  </div>
                 </div>
               )}
             </section>
@@ -1081,20 +1282,39 @@ export default function NuevaApuesta() {
             <h2 className="card-title">Monto y Emisión del Ticket</h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
-              <div className="form-field">
-                <label htmlFor="stake-input">Monto a Apostar</label>
-                <input
-                  id="stake-input"
-                  className="input"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={stake}
-                  onChange={(e) => setStake(e.target.value)}
-                  placeholder="Ej: 10.00"
-                  required
-                />
-              </div>
+              {type !== 'animalitos' && (
+                <div className="form-field">
+                  <label htmlFor="stake-input">Monto a Apostar</label>
+                  <input
+                    id="stake-input"
+                    className="input"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={stake}
+                    onChange={(e) => setStake(e.target.value)}
+                    placeholder="Ej: 10.00"
+                    required
+                  />
+                </div>
+              )}
+
+              {type === 'animalitos' && (
+                <div className="form-field">
+                  <label htmlFor="stake-readonly">Total a Apostar</label>
+                  <input
+                    id="stake-readonly"
+                    className="input"
+                    type="text"
+                    value={formatAmount(animalitosTotal)}
+                    readOnly
+                    disabled
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                    Suma de los montos de cada animalito.
+                  </span>
+                </div>
+              )}
 
               <div style={{ background: 'var(--bg-input)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block' }}>Cuota / Multiplicador</span>
@@ -1129,6 +1349,13 @@ export default function NuevaApuesta() {
               </div>
             )}
 
+            {type === 'animalitos' && animalRows.length > 0 && (
+              <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '0.88rem' }}>
+                ℹ Sorteo: <strong>{formatDrawLabel(drawDate, drawTime)}</strong> · {animalRows.length} animalito
+                {animalRows.length === 1 ? '' : 's'} · Total {formatAmount(animalitosTotal)}
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
               <Link className="btn btn-secondary" to="/taquilla">
                 Cancelar
@@ -1140,7 +1367,8 @@ export default function NuevaApuesta() {
                   saving ||
                   overMaxBet ||
                   overMaxPayout ||
-                  amountNumber <= 0 ||
+                  stakeAmount <= 0 ||
+                  (type === 'animalitos' && (!drawTime || animalRows.length === 0)) ||
                   (type === 'parley' && selections.length < 2)
                 }
                 style={{ minWidth: '180px' }}
@@ -1279,12 +1507,21 @@ export default function NuevaApuesta() {
                           </strong>
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                          Mercado: <strong style={{ color: 'var(--text-primary)' }}>{sel.market || 'Ganador'}</strong>
+                          {lastCreatedTicket.type === 'animalitos'
+                            ? `Monto: ${formatAmount(sel.amount)}`
+                            : `Mercado: ${sel.market || 'Ganador'}`}
                         </div>
                       </div>
                     );
                   })}
                 </div>
+
+                {lastCreatedTicket.type === 'animalitos' && lastCreatedTicket.sorteo_at && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.5rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Sorteo:</span>
+                    <strong>{formatDrawTime(lastCreatedTicket.sorteo_at)}</strong>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.5rem' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Monto Apostado:</span>
