@@ -21,12 +21,17 @@ function formatSorteoDate(value) {
   }
 }
 
+// Horario de juego de las loterías: de 8:00 a 19:00 en punto.
+// "12:00" es el mediodía.
 const HORARIOS_COMUNES = [
+  '08:00',
   '09:00',
   '10:00',
   '11:00',
   '12:00',
   '13:00',
+  '14:00',
+  '15:00',
   '16:00',
   '17:00',
   '18:00',
@@ -222,7 +227,11 @@ export default function Lotteries() {
 
     setSaving(true);
     try {
-      await api.post('/admin/lotteries', { name: form.name, animals: rows });
+      await api.post('/admin/lotteries', {
+        name: form.name,
+        animals: rows,
+        draw_times: HORARIOS_COMUNES,
+      });
       setSuccess(`Lotería registrada con ${rows.length} animalitos.`);
       setForm(emptyForm());
       await loadLotteries();

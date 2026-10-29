@@ -53,4 +53,32 @@ return [
         ['number' => '36', 'animal' => 'Culebra'],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Horarios de sorteo por defecto
+    |--------------------------------------------------------------------------
+    |
+    | Horario de juego de las loterías, de 8:00 a 19:00 en punto. Es el
+    | que se asigna a una lotería nueva, y el que el administrador puede
+    | ajustar después desde el detalle de la lotería.
+    |
+    | Nota: "12:00" es el mediodía.
+    |
+    */
+
+    'draw_times' => [
+        '08:00',
+        '09:00',
+        '10:00',
+        '11:00',
+        '12:00',
+        '13:00',
+        '14:00',
+        '15:00',
+        '16:00',
+        '17:00',
+        '18:00',
+        '19:00',
+    ],
+
 ];
