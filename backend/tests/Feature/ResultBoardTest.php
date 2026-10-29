@@ -17,7 +17,7 @@ use Tests\TestCase;
 /**
  * Cartelera de juegos y correcciones manuales del calendario.
  */
-class GameBoardTest extends TestCase
+class ResultBoardTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -80,7 +80,7 @@ class GameBoardTest extends TestCase
         $this->fakeFootball('2026-10-29', '2026-10-29T23:00:00+00:00');
 
         $response = $this->withHeader('Authorization', 'Bearer '.auth('api')->login($this->taquilla))
-            ->getJson('/api/games?from=2026-10-29&to=2026-10-29&sport=football');
+            ->getJson('/api/results?from=2026-10-29&to=2026-10-29&sport=football');
 
         $response->assertStatus(200);
 
@@ -100,12 +100,12 @@ class GameBoardTest extends TestCase
         $token = auth('api')->login($this->taquilla);
 
         $porLiga = $this->withHeader('Authorization', "Bearer {$token}")
-            ->getJson('/api/games?from=2026-10-29&to=2026-10-29&sport=football&league=NoExiste');
+            ->getJson('/api/results?from=2026-10-29&to=2026-10-29&sport=football&league=NoExiste');
         $porLiga->assertStatus(200);
         $this->assertCount(0, $porLiga->json('data.parley'));
 
         $porBusqueda = $this->withHeader('Authorization', "Bearer {$token}")
-            ->getJson('/api/games?from=2026-10-29&to=2026-10-29&sport=football&search=Visitante');
+            ->getJson('/api/results?from=2026-10-29&to=2026-10-29&sport=football&search=Visitante');
         $porBusqueda->assertStatus(200);
         $this->assertCount(1, $porBusqueda->json('data.parley'));
     }
@@ -138,7 +138,7 @@ class GameBoardTest extends TestCase
         ]);
 
         $response = $this->withHeader('Authorization', 'Bearer '.auth('api')->login($this->taquilla))
-            ->getJson('/api/games?from=2026-10-29&to=2026-10-29&type=hipismo');
+            ->getJson('/api/results?from=2026-10-29&to=2026-10-29&type=hipismo');
 
         $response->assertStatus(200);
 
@@ -147,7 +147,7 @@ class GameBoardTest extends TestCase
         $this->assertEquals(0, $response->json('data.counts.parley'));
 
         $responseAnimalitos = $this->withHeader('Authorization', 'Bearer '.auth('api')->login($this->taquilla))
-            ->getJson('/api/games?from=2026-10-29&to=2026-10-29&type=animalitos');
+            ->getJson('/api/results?from=2026-10-29&to=2026-10-29&type=animalitos');
 
         $responseAnimalitos->assertStatus(200);
         $this->assertCount(1, $responseAnimalitos->json('data.animalitos'));
@@ -189,13 +189,13 @@ class GameBoardTest extends TestCase
 
         // El dia original ya no lo muestra.
         $original = $this->withHeader('Authorization', "Bearer {$adminToken}")
-            ->getJson('/api/games?from=2026-10-28&to=2026-10-28&sport=football');
+            ->getJson('/api/results?from=2026-10-28&to=2026-10-28&sport=football');
         $original->assertStatus(200);
         $this->assertCount(0, $original->json('data.parley'));
 
         // Y el dia corregido si, con la fecha del proveedor a la vista.
         $corregido = $this->withHeader('Authorization', "Bearer {$adminToken}")
-            ->getJson('/api/games?from=2026-10-29&to=2026-10-29&sport=football');
+            ->getJson('/api/results?from=2026-10-29&to=2026-10-29&sport=football');
         $corregido->assertStatus(200);
 
         $evento = $corregido->json('data.parley.0');
@@ -230,7 +230,55 @@ class GameBoardTest extends TestCase
         $this->assertSame(0, ParleyEventOverride::count());
     }
 
-    public function test_el_filtro_de_ligas_y_loterias(): void
+    public function test_el_filtro_de_loterias_muestra_solo_esa_modalidad(): void
+    {
+        $this->fakeFootball('2026-10-29', '2026-10-29T23:00:00+00:00');
+
+        $lottery = Lottery::create([
+            'name' => 'Lotto Activo',
+            'slug' => 'lotto-activo',
+            'payout_multiplier' => 30,
+            'is_active' => true,
+            'draw_times' => ['09:00', '19:00'],
+        ]);
+
+        AnimalitoSorteo::create([
+            'lottery_id' => $lottery->id,
+            'number' => '5',
+            'animal' => 'León',
+            'sorteo_at' => Carbon::parse('2026-10-29 19:00:00'),
+            'es_manual' => true,
+            'is_resolved' => true,
+        ]);
+
+        $response = $this->withHeader('Authorization', 'Bearer '.auth('api')->login($this->taquilla))
+            ->getJson('/api/results?from=2026-10-29&to=2026-10-29&lottery_id='.$lottery->id);
+
+        $response->assertStatus(200);
+
+        // Elegir una loteria acota la cartelera a los sorteos de animalitos:
+        // los partidos de parley no se mezclan.
+        $this->assertEquals('animalitos', $response->json('data.type'));
+        $this->assertCount(0, $response->json('data.parley'));
+        $this->assertCount(1, $response->json('data.animalitos'));
+        $this->assertEquals('Lotto Activo', $response->json('data.animalitos.0.lottery'));
+    }
+
+    public function test_el_filtro_de_liga_acota_la_cartelera_al_parley(): void
+    {
+        $this->fakeFootball('2026-10-29', '2026-10-29T23:00:00+00:00');
+
+        $response = $this->withHeader('Authorization', 'Bearer '.auth('api')->login($this->taquilla))
+            ->getJson('/api/results?from=2026-10-29&to=2026-10-29&league=Copa%20del%20Rey');
+
+        $response->assertStatus(200);
+
+        $this->assertEquals('parley', $response->json('data.type'));
+        $this->assertCount(0, $response->json('data.animalitos'));
+        $this->assertCount(0, $response->json('data.hipismo'));
+    }
+
+    public function test_el_filtro_de_loterias(): void
     {
         $lottery = Lottery::create([
             'name' => 'Lotto Activo',
@@ -241,7 +289,7 @@ class GameBoardTest extends TestCase
         ]);
 
         $response = $this->withHeader('Authorization', 'Bearer '.auth('api')->login($this->taquilla))
-            ->getJson('/api/games/lotteries');
+            ->getJson('/api/results/lotteries');
 
         $response->assertStatus(200);
         $this->assertEquals('Lotto Activo', $response->json('data.0.name'));
