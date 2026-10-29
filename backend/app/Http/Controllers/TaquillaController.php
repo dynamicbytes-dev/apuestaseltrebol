@@ -3,22 +3,44 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\AnalyticsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class TaquillaController extends Controller
 {
-    public function index(): JsonResponse
+    public function __construct(private readonly AnalyticsService $analytics) {}
+
+    /**
+     * Taquillas del supervisor con sus ventas y el porciento que
+     * corresponde sobre cada una.
+     */
+    public function index(Request $request): JsonResponse
     {
         /** @var User $supervisor */
         $supervisor = auth('api')->user();
+
+        $data = $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+        ], [
+            'from.date_format' => 'La fecha inicial debe tener el formato AAAA-MM-DD.',
+            'to.date_format' => 'La fecha final debe tener el formato AAAA-MM-DD.',
+            'to.after_or_equal' => 'La fecha final no puede ser anterior a la inicial.',
+        ]);
+
+        $ventas = $this->analytics->taquillaSales(
+            $data['from'] ?? null,
+            $data['to'] ?? null,
+            $supervisor->id
+        );
 
         $taquillas = User::where('role', User::ROLE_TICKETER)
             ->where('supervisor_id', $supervisor->id)
             ->orderBy('name')
             ->get()
-            ->map(fn (User $taquilla) => $this->formatTaquilla($taquilla));
+            ->map(fn (User $taquilla) => $this->formatTaquilla($taquilla, $ventas));
 
         return response()->json(['data' => $taquillas]);
     }
@@ -113,8 +135,17 @@ class TaquillaController extends Controller
         ]);
     }
 
-    private function formatTaquilla(User $taquilla): array
+    private function formatTaquilla(User $taquilla, array $ventas = []): array
     {
+        $datos = $ventas[$taquilla->id] ?? [
+            'tickets' => 0,
+            'stake' => 0.0,
+            'paid' => 0.0,
+            'net' => 0.0,
+            'share_percentage' => (float) config('business.supervisor_share', 0.13) * 100,
+            'share_amount' => 0.0,
+        ];
+
         return [
             'id' => $taquilla->id,
             'name' => $taquilla->name,
@@ -122,6 +153,7 @@ class TaquillaController extends Controller
             'agency_id' => $taquilla->agency_id,
             'supervisor_id' => $taquilla->supervisor_id,
             'created_at' => $taquilla->created_at?->toISOString(),
+            'sales' => $datos,
         ];
     }
 }

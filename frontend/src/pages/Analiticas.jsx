@@ -223,7 +223,7 @@ export default function Analiticas() {
                 </div>
                 <div>
                   <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    Tu participación ({Math.round(data.share.percentage)}% de las ventas)
+                    Comisiones de tus taquillas ({Math.round(data.share.percentage)}% de cada una)
                   </span>
                   <strong
                     style={{
@@ -247,7 +247,8 @@ export default function Analiticas() {
                   </strong>
                 </div>
                 <div style={{ marginTop: '0.2rem', color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>
-                  {Math.round(data.share.percentage)}% de {formatAmount(data.share.base)} corresponde al supervisor
+                  El {Math.round(data.share.percentage)}% se calcula por taquilla. El detalle de cada
+                  una está en Gestión de Taquillas.
                 </div>
               </div>
             </div>
