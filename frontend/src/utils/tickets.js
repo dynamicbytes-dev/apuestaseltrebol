@@ -42,6 +42,37 @@ export function settlementStatusClass(status) {
 }
 
 /**
+ * Estado único del ticket para las tablas.
+ *
+ * Un ticket solo muestra un estado: si esta pagado o anulado manda ese; si
+ * no, manda el resultado de la liquidacion, que cambia solo cuando se
+ * registra el resultado oficial.
+ */
+export function ticketSingleStatus(ticket) {
+  if (ticket.status === 'paid') {
+    return { key: 'paid', label: 'Pagado', className: 'status-finished' };
+  }
+
+  if (ticket.status === 'cancelled') {
+    return { key: 'cancelled', label: 'Anulado', className: 'status-inactive' };
+  }
+
+  if (ticket.settlement_status === 'won') {
+    return { key: 'won', label: 'Ganador', className: 'status-finished' };
+  }
+
+  if (ticket.settlement_status === 'lost') {
+    return { key: 'lost', label: 'No ganador', className: 'status-inactive' };
+  }
+
+  if (ticket.settlement_status === 'review') {
+    return { key: 'review', label: 'En revisión', className: 'status-pending' };
+  }
+
+  return { key: 'pending', label: 'Pendiente de resultado', className: 'status-pending' };
+}
+
+/**
  * El ticket solo se puede pagar si la liquidación lo permite.
  * Un ticket perdedor o en revisión no habilita el pago en taquilla.
  */

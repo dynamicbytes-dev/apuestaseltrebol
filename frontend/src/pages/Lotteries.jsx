@@ -649,7 +649,7 @@ export default function Lotteries() {
                           </span>
                         </td>
                         <td>
-                          <strong style={{ color: '#ffffff' }}>{s.animal}</strong>
+                          <strong style={{ color: 'var(--text-primary)' }}>{s.animal}</strong>
                         </td>
                         <td>
                           <span style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>

@@ -14,11 +14,8 @@ import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
 import {
   TICKET_TYPE_LABELS,
-  TICKET_STATUS_LABELS,
   MOVEMENT_LABELS,
-  ticketStatusClass,
-  settlementStatusLabel,
-  settlementStatusClass,
+  ticketSingleStatus,
   formatAmount,
   formatTicketDate,
 } from '../utils/tickets';
@@ -238,16 +235,9 @@ export default function Historial() {
                       </strong>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
-                        <span className={ticketStatusClass(t.status)}>
-                          {TICKET_STATUS_LABELS[t.status] ?? t.status}
-                        </span>
-                        {t.type === 'parley' && t.settlement_status && (
-                          <span className={settlementStatusClass(t.settlement_status)}>
-                            {settlementStatusLabel(t.settlement_status)}
-                          </span>
-                        )}
-                      </div>
+                      <span className={ticketSingleStatus(t).className}>
+                        {ticketSingleStatus(t).label}
+                      </span>
                     </td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
                       {formatTicketDate(t.created_at)}
