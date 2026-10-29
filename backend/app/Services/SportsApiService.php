@@ -182,8 +182,9 @@ class SportsApiService
                 ];
             })
             ->filter(fn (array $market) => ! empty($market['selections']))
-            ->values()
-            ->all();
+            ->values();
+
+        $markets = $this->keepTraditionalMarkets($sport, $markets);
 
         return [
             'available' => true,
@@ -348,6 +349,34 @@ class SportsApiService
 
             return $event;
         });
+    }
+
+    /**
+     * Se quedan solo los mercados tradicionales del deporte.
+     *
+     * El proveedor devuelve decenas de mercados por partido; para el jugador
+     * solo tienen sentido los de siempre. Los identificadores son los del
+     * proveedor y varian por deporte, asi que van en la configuracion.
+     *
+     * @param  Collection<int, array<string, mixed>>  $markets
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function keepTraditionalMarkets(string $sport, Collection $markets): Collection
+    {
+        $permitidos = config("sports.traditional_markets.{$sport}");
+
+        if ($permitidos === null) {
+            return $markets;
+        }
+
+        // Sin lista configurada se devuelven todos los mercados.
+        if ($permitidos === []) {
+            return $markets;
+        }
+
+        return $markets
+            ->filter(fn (array $market) => in_array($market['id'], $permitidos, true))
+            ->values();
     }
 
     /**

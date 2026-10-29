@@ -145,11 +145,28 @@ Se mantienen como estaban: una sola selección por ticket, todo o nada.
 
 Módulo común a los tres roles: el historial unificado de todo lo que se pudo apostar y su desenlace.
 
-- **Filtros**: rango de fechas, tipo de apuesta (parley, hipismo, animalitos), deporte, liga, estado, lotería y búsqueda por texto.
-- **Un filtro acota a su modalidad**: elegir una lotería muestra los sorteos de animalitos de esa lotería (no los partidos de parley); elegir un deporte o una liga muestra el parley. El selector de estado se adapta a la modalidad activa.
+- **Filtros**: tipo de apuesta (el primero), rango de fechas, búsqueda por texto, y los filtros propios de cada modalidad:
+  - **Parley**: deporte y liga.
+  - **Hipismo**: reunión.
+  - **Animalitos**: lotería.
+
+  Un filtro acota la cartelera a su modalidad: elegir una lotería muestra los sorteos de esa lotería (no los partidos de parley) y elegir un deporte o una liga muestra el parley.
 - **Parley**: los eventos del proveedor con su horario, liga, marcador y estado. Si el proveedor fechó mal un partido, el administrador puede corregir la fecha desde la propia cartelera: la corrección se aplica en todas partes (apuestas, liquidación y cartelera) y el partido cambia de día. La fecha original del proveedor se muestra al lado de la corregida.
 - **Hipismo**: las carreras con su podio y sus ejemplares.
 - **Animalitos**: los sorteos con el número ganador, el animalito y si el resultado fue automático o manual.
+
+### Mercados de parley
+
+El proveedor publica casi **50 mercados** por partido (primer tiempo, Odd/Even, Team To Score, handicaps por cuartos...). Para el jugador solo tienen sentido los **tradicionales**, que se configuran por deporte en `config/sports.php` porque sus identificadores cambian:
+
+| Deporte | Mercados |
+|---|---|
+| Fútbol | Match Winner · Home/Away · Asian Handicap · Goals Over/Under · Both Teams Score · Double Chance |
+| Béisbol | Match Winner · Home/Away · Asian Handicap · Over/Under |
+| Baloncesto | 3Way Result · Home/Away · Asian Handicap · Over/Under · Double Chance |
+| Hockey | 3Way Result · Home/Away · Both Teams To Score · Double Chance · Total - Home · Total - Away |
+
+Un partido en vivo o ya terminado **no se lista** para ver sus cuotas: solo se ofrecen los que no han empezado.
 
 ### Estado de liquidación en la lista de tickets
 
@@ -233,6 +250,7 @@ La sesión usa tokens JWT. La duración se toma de `JWT_TTL` (en minutos, por de
 | `GET` | `/api/results` | Cartelera de resultados (con filtros) |
 | `GET` | `/api/results/leagues` | Listado de ligas de un deporte |
 | `GET` | `/api/results/lotteries` | Loterías con su horario |
+| `GET` | `/api/results/reuniones` | Reuniones de hipismo |
 
 ### Administrador (`/api/admin`)
 
@@ -347,7 +365,9 @@ La CI (`.github/workflows/ci.yml`) corre en cada push y en cada PR contra `main`
 - [x] Sorteo declarado por la apuesta y pago por pierna ganadora
 - [x] Flujo de revisión manual para jugadas que no se pueden liquidar solas
 - [x] Analíticas por agencia e historial de movimientos
-- [x] Cartelera de resultados con filtros, disponible en los tres paneles
+- [x] Cartelera de resultados con filtros por modalidad, disponible en los tres paneles
+- [x] Solo se muestran los mercados tradicionales en las cuotas de parley
+- [x] En parley solo se ofrecen los partidos que no han empezado
 - [x] Corrección manual del calendario de partidos con fecha errónea
 - [x] Sesión configurable con renovación automática
 - [x] Planificador operativo (sincronización de resultados de loterías)

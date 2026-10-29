@@ -109,7 +109,12 @@ class ParleySettlementTest extends TestCase
 
         $ticket = $this->parleyTicket([
             ['external_event_id' => '100', 'selection_label' => 'Home'],
-            ['external_event_id' => '100', 'selection_label' => 'Over 1.5'],
+            [
+                'external_event_id' => '100',
+                'selection_label' => 'Over 1.5',
+                'market' => 'Goals Over/Under',
+                'market_id' => 5,
+            ],
         ]);
 
         $token = auth('api')->login($this->taquilla);

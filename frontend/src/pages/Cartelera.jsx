@@ -80,11 +80,13 @@ export default function Cartelera() {
   const [league, setLeague] = useState('');
   const [status, setStatus] = useState('');
   const [lotteryId, setLotteryId] = useState('');
+  const [meeting, setMeeting] = useState('');
   const [search, setSearch] = useState('');
 
   const [data, setData] = useState(null);
   const [leagues, setLeagues] = useState([]);
   const [lotteries, setLotteries] = useState([]);
+  const [reuniones, setReuniones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -99,6 +101,7 @@ export default function Cartelera() {
     if (tipo) return tipo;
     if (lotteryId) return 'animalitos';
     if (sport || league) return 'parley';
+    if (meeting) return 'hipismo';
 
     const s = status.toLowerCase();
     if (['pending', 'finished'].includes(s)) return 'hipismo';
@@ -106,7 +109,14 @@ export default function Cartelera() {
     if (s !== '') return 'parley';
 
     return '';
-  }, [tipo, lotteryId, sport, league, status]);
+  }, [tipo, lotteryId, sport, league, meeting, status]);
+
+  // Cada modalidad muestra solo los filtros que le son propios: el deporte
+  // y la liga son del parley, la reunion es del hipismo y la loteria es de
+  // los animalitos.
+  const showParley = tipo === '' || tipo === 'parley';
+  const showHipismo = tipo === '' || tipo === 'hipismo';
+  const showAnimalitos = tipo === '' || tipo === 'animalitos';
 
   const statusOptions = STATUS_POR_TIPO[effectiveType] ?? STATUS_POR_TIPO.parley;
 
@@ -129,6 +139,7 @@ export default function Cartelera() {
           league: league || undefined,
           status: status || undefined,
           lottery_id: lotteryId || undefined,
+          meeting: meeting || undefined,
           search: search.trim() || undefined,
         },
       });
@@ -173,6 +184,13 @@ export default function Cartelera() {
       .get('/results/lotteries')
       .then((res) => setLotteries(res.data.data))
       .catch(() => setLotteries([]));
+  }, []);
+
+  useEffect(() => {
+    api
+      .get('/results/reuniones')
+      .then((res) => setReuniones(res.data.data))
+      .catch(() => setReuniones([]));
   }, []);
 
   const startEdit = (event) => {
@@ -254,116 +272,173 @@ export default function Cartelera() {
       <section
         className="card"
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: '0.85rem',
-          alignItems: 'end',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.1rem',
           background: 'var(--bg-input)',
           marginBottom: '1.25rem',
         }}
       >
-        <div className="form-field" style={{ margin: 0 }}>
-          <label htmlFor="cb-from">
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <CalendarDays size={14} color="#38bdf8" />
-              <strong>Desde</strong>
-            </span>
-          </label>
-          <input id="cb-from" className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        {/* Primera fila: tipo de apuesta (siempre primero), fechas y busqueda */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '1.1rem',
+            alignItems: 'end',
+          }}
+        >
+          <div className="form-field" style={{ margin: 0 }}>
+            <label htmlFor="cb-type">
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Filter size={14} color="#34d399" />
+                <strong>Tipo de apuesta</strong>
+              </span>
+            </label>
+            <select
+              id="cb-type"
+              className="input"
+              value={tipo}
+              onChange={(e) => {
+                setTipo(e.target.value);
+                setSport('');
+                setLeague('');
+                setLotteryId('');
+                setMeeting('');
+              }}
+            >
+              {TIPOS.map((t) => (
+                <option key={t.key} value={t.key}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-field" style={{ margin: 0 }}>
+            <label htmlFor="cb-from">
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <CalendarDays size={14} color="#38bdf8" />
+                <strong>Desde</strong>
+              </span>
+            </label>
+            <input id="cb-from" className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+
+          <div className="form-field" style={{ margin: 0 }}>
+            <label htmlFor="cb-to">
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <CalendarDays size={14} color="#38bdf8" />
+                <strong>Hasta</strong>
+              </span>
+            </label>
+            <input id="cb-to" className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+
+          <div className="form-field" style={{ margin: 0 }}>
+            <label htmlFor="cb-search">
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Search size={14} color="#94a3b8" />
+                <strong>Buscar</strong>
+              </span>
+            </label>
+            <input id="cb-search" className="input" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Equipo, carrera o animalito" />
+          </div>
         </div>
 
-        <div className="form-field" style={{ margin: 0 }}>
-          <label htmlFor="cb-to">
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <CalendarDays size={14} color="#38bdf8" />
-              <strong>Hasta</strong>
-            </span>
-          </label>
-          <input id="cb-to" className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-        </div>
+        {/* Segunda fila: los filtros que aplican a la modalidad elegida */}
+        {(showParley || showHipismo || showAnimalitos) && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1.1rem',
+              alignItems: 'end',
+              paddingTop: '1rem',
+              borderTop: '1px dashed var(--border-subtle)',
+            }}
+          >
+            {showParley && (
+              <>
+                <div className="form-field" style={{ margin: 0 }}>
+                  <label htmlFor="cb-sport">
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Trophy size={14} color="#f59e0b" />
+                      <strong>Deporte</strong>
+                    </span>
+                  </label>
+                  <select id="cb-sport" className="input" value={sport} onChange={(e) => { setSport(e.target.value); setLeague(''); }}>
+                    <option value="">Todos</option>
+                    {SPORTS.map((s) => (
+                      <option key={s.key} value={s.key}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
 
-        <div className="form-field" style={{ margin: 0 }}>
-          <label htmlFor="cb-type">
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Filter size={14} color="#34d399" />
-              <strong>Apuesta</strong>
-            </span>
-          </label>
-          <select id="cb-type" className="input" value={tipo} onChange={(e) => setTipo(e.target.value)}>
-            {TIPOS.map((t) => (
-              <option key={t.key} value={t.key}>{t.label}</option>
-            ))}
-          </select>
-        </div>
+                <div className="form-field" style={{ margin: 0 }}>
+                  <label htmlFor="cb-league">
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Trophy size={14} color="#f59e0b" />
+                      <strong>Liga</strong>
+                    </span>
+                  </label>
+                  <select id="cb-league" className="input" value={league} onChange={(e) => setLeague(e.target.value)} disabled={!sport}>
+                    <option value="">{sport ? 'Todas' : 'Elige un deporte'}</option>
+                    {leagues.map((l) => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
 
-        <div className="form-field" style={{ margin: 0 }}>
-          <label htmlFor="cb-sport">
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Trophy size={14} color="#f59e0b" />
-              <strong>Deporte</strong>
-            </span>
-          </label>
-          <select id="cb-sport" className="input" value={sport} onChange={(e) => { setSport(e.target.value); setLeague(''); }}>
-            <option value="">Todos</option>
-            {SPORTS.map((s) => (
-              <option key={s.key} value={s.key}>{s.label}</option>
-            ))}
-          </select>
-        </div>
+            {showHipismo && (
+              <div className="form-field" style={{ margin: 0 }}>
+                <label htmlFor="cb-meeting">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Flame size={14} color="#38bdf8" />
+                    <strong>Reunión</strong>
+                  </span>
+                </label>
+                <select id="cb-meeting" className="input" value={meeting} onChange={(e) => setMeeting(e.target.value)}>
+                  <option value="">Todas</option>
+                  {reuniones.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-        <div className="form-field" style={{ margin: 0 }}>
-          <label htmlFor="cb-league">
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Trophy size={14} color="#f59e0b" />
-              <strong>Liga</strong>
-            </span>
-          </label>
-          <select id="cb-league" className="input" value={league} onChange={(e) => setLeague(e.target.value)} disabled={!sport}>
-            <option value="">{sport ? 'Todas' : 'Elige un deporte'}</option>
-            {leagues.map((l) => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </select>
-        </div>
+            {showAnimalitos && (
+              <div className="form-field" style={{ margin: 0 }}>
+                <label htmlFor="cb-lottery">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Sparkles size={14} color="#a78bfa" />
+                    <strong>Lotería</strong>
+                  </span>
+                </label>
+                <select id="cb-lottery" className="input" value={lotteryId} onChange={(e) => setLotteryId(e.target.value)}>
+                  <option value="">Todas</option>
+                  {lotteries.map((l) => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-        <div className="form-field" style={{ margin: 0 }}>
-          <label htmlFor="cb-status">
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <CheckCircle2 size={14} color="#34d399" />
-              <strong>Estado</strong>
-            </span>
-          </label>
-          <select id="cb-status" className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
-            {statusOptions.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-field" style={{ margin: 0 }}>
-          <label htmlFor="cb-lottery">
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Sparkles size={14} color="#a78bfa" />
-              <strong>Lotería</strong>
-            </span>
-          </label>
-          <select id="cb-lottery" className="input" value={lotteryId} onChange={(e) => setLotteryId(e.target.value)}>
-            <option value="">Todas</option>
-            {lotteries.map((l) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-field" style={{ margin: 0 }}>
-          <label htmlFor="cb-search">
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Search size={14} color="#94a3b8" />
-              <strong>Buscar</strong>
-            </span>
-          </label>
-          <input id="cb-search" className="input" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Equipo, carrera o animalito" />
-        </div>
+            <div className="form-field" style={{ margin: 0 }}>
+              <label htmlFor="cb-status">
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <CheckCircle2 size={14} color="#34d399" />
+                  <strong>Estado</strong>
+                </span>
+              </label>
+              <select id="cb-status" className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
+                {statusOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
       </section>
 
       {loading ? (

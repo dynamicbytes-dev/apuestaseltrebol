@@ -176,13 +176,26 @@ class SportsSettlementService
             };
         }
 
-        // Regla 2: total de goles (Over/Under). Se usa la etiqueta sin
-        // normalizar porque el decimal del umbral es significativo.
+        // Regla 2: total de goles. Hay que distinguir el total del partido
+        // del total de un solo equipo: en "Total - Home" el mercado es el
+        // del local, no la suma de los dos.
         if (preg_match('/^(over|under)\s*([0-9]+(?:[.,][0-9]+)?)/', $raw, $matches) === 1) {
             $threshold = (float) str_replace(',', '.', $matches[2]);
-            $total = $homeScore + $awayScore;
 
-            return $matches[1] === 'over' ? $total > $threshold : $total < $threshold;
+            if ($this->isHomeTotalMarket($market)) {
+                $total = $homeScore;
+            } elseif ($this->isAwayTotalMarket($market)) {
+                $total = $awayScore;
+            } elseif ($this->isTotalMarket($market)) {
+                $total = $homeScore + $awayScore;
+            } else {
+                // Un mercado que no es de total no se liquida con esta regla.
+                $total = null;
+            }
+
+            if ($total !== null) {
+                return $matches[1] === 'over' ? $total > $threshold : $total < $threshold;
+            }
         }
 
         // Regla 3: ambos equipos marcan.
@@ -232,6 +245,61 @@ class SportsSettlementService
     private function isWinnerMarket(string $market): bool
     {
         foreach (config('sports.settlement.winner_markets', []) as $needle) {
+            if (str_contains($market, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Mercado de totales del equipo local ("Total - Home", "Home Team Total").
+     */
+    private function isHomeTotalMarket(string $market): bool
+    {
+        foreach (['totalhome', 'hometotal', 'hometeamtot'] as $needle) {
+            if (str_contains($market, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Mercado de totales del equipo visitante.
+     */
+    private function isAwayTotalMarket(string $market): bool
+    {
+        foreach (['totalaway', 'awaytotal', 'awayteamtot'] as $needle) {
+            if (str_contains($market, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Mercado de totales del partido (ambos equipos sumados).
+     *
+     * Los totales de una parte del partido (primer tiempo, cuarto, inning)
+     * NO son el total del partido: se dejan para revision manual.
+     */
+    private function isTotalMarket(string $market): bool
+    {
+        if ($this->isHomeTotalMarket($market) || $this->isAwayTotalMarket($market)) {
+            return false;
+        }
+
+        foreach (['firsthalf', 'secondhalf', '1sthalf', '2ndhalf', 'halftime', 'quarter', 'period', 'inning'] as $needle) {
+            if (str_contains($market, $needle)) {
+                return false;
+            }
+        }
+
+        foreach (['overunder', 'total', 'goals'] as $needle) {
             if (str_contains($market, $needle)) {
                 return true;
             }
