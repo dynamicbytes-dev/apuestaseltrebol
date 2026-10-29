@@ -31,6 +31,28 @@ export function todayISO() {
   }).format(new Date());
 }
 
+/**
+ * Suma o resta días a una fecha AAAA-MM-DD.
+ *
+ * Es aritmética de calendario pura: no depende del reloj del navegador, así
+ * que "hoy" y "mañana" son siempre los días de la operación.
+ */
+export function shiftDateISO(isoDate, days) {
+  const [year, month, day] = String(isoDate).split('-').map(Number);
+
+  if (!year || !month || !day) {
+    return isoDate;
+  }
+
+  const shifted = new Date(Date.UTC(year, month - 1, day + days));
+
+  const yyyy = shifted.getUTCFullYear();
+  const mm = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(shifted.getUTCDate()).padStart(2, '0');
+
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export function formatTime(value) {
   if (!value) return '—';
 
