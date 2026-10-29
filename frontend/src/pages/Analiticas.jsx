@@ -8,6 +8,7 @@ import {
   Ticket,
   Wallet,
   RefreshCw,
+  Percent,
 } from 'lucide-react';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
@@ -180,6 +181,77 @@ export default function Analiticas() {
             />
             <MetricCard icon={BarChart3} label="Exposición pendiente" value={formatAmount(totals.exposure)} tone="info" hint="Premio potencial por cobrar" />
           </div>
+
+          {/* KPI: porciento del supervisor sobre las ventas de sus taquillas */}
+          {!isAdmin && data.share && (
+            <div
+              className="card"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: '1.5rem',
+                marginBottom: '1.25rem',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(56, 189, 248, 0.08))',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.85rem',
+                  paddingRight: '1.5rem',
+                  borderRight: '1px solid var(--border-subtle)',
+                }}
+              >
+                <div
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '12px',
+                    background: 'rgba(16, 185, 129, 0.2)',
+                    border: '1px solid rgba(16, 185, 129, 0.45)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#34d399',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Percent size={22} />
+                </div>
+                <div>
+                  <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Tu participación ({Math.round(data.share.percentage)}% de las ventas)
+                  </span>
+                  <strong
+                    style={{
+                      display: 'block',
+                      fontSize: '1.65rem',
+                      color: '#34d399',
+                      fontFamily: 'var(--font-mono)',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {formatAmount(data.share.amount)}
+                  </strong>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                <div>
+                  Ventas totales de tus taquillas:{' '}
+                  <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                    {formatAmount(data.share.base)}
+                  </strong>
+                </div>
+                <div style={{ marginTop: '0.2rem', color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>
+                  {Math.round(data.share.percentage)}% de {formatAmount(data.share.base)} corresponde al supervisor
+                </div>
+              </div>
+            </div>
+          )}
 
           <div
             style={{

@@ -211,7 +211,16 @@ class SportsSettlementService
             }
         }
 
-        // Reglas 4 y 5: ganador del partido, por signo o por nombre de equipo.
+        // Regla 6: handicap asiatico ("Home -1.25", "Away +0.5", "Draw -1").
+        // La linea se aplica a la diferencia local - visitante y las lineas de
+        // cuarto se reparten entre la entera y la siguiente.
+        $handicap = $this->settleAsianHandicap($raw, $homeScore, $awayScore);
+
+        if ($handicap !== null) {
+            return $handicap;
+        }
+
+        // Regla 4 y 5: ganador del partido, por signo o por nombre de equipo.
         if (! $this->isWinnerMarket($market)) {
             return null;
         }
@@ -240,6 +249,74 @@ class SportsSettlementService
         }
 
         return null;
+    }
+
+    /**
+     * Liquida un handicap asiatico.
+     *
+     * La linea se aplica a la diferencia (local - visitante). Las lineas de
+     * cuarto (por ejemplo -1.25) se reparten entre la linea entera y la
+     * siguiente: la apuesta gana solo si ganan las dos mitades.
+     *
+     * @return bool|null true = gana, false = pierde, null = no se puede liquidar
+     */
+    private function settleAsianHandicap(string $label, float $homeScore, float $awayScore): ?bool
+    {
+        if (preg_match('/^(home|away|draw)\s*([+-]?\d+(?:\.\d+)?)$/i', trim($label), $matches) !== 1) {
+            return null;
+        }
+
+        $side = strtolower($matches[1]);
+        $handicap = (float) $matches[2];
+        $difference = $homeScore - $awayScore;
+
+        $results = [];
+
+        foreach ($this->splitHandicap($handicap) as $line) {
+            $adjusted = $difference + $line;
+
+            $results[] = match ($side) {
+                'home' => $adjusted > 0 ? 1 : ($adjusted === 0.0 ? 0 : -1),
+                'away' => $adjusted < 0 ? 1 : ($adjusted === 0.0 ? 0 : -1),
+                'draw' => $adjusted === 0.0 ? 1 : -1,
+            };
+        }
+
+        if (in_array(-1, $results, true)) {
+            return false;
+        }
+
+        if (in_array(1, $results, true)) {
+            return true;
+        }
+
+        // Empate en la linea: la apuesta no gana, pero tampoco pierde. No se
+        // puede representar con el modelo actual, asi que se deja sin
+        // liquidar para que lo revise el supervisor.
+        return null;
+    }
+
+    /**
+     * Divide una linea de handicap en sus partes.
+     *
+     * -1.25 se reparte entre -1 y -1.5; -1.75 entre -1.5 y -2.
+     *
+     * @return array<int, float>
+     */
+    private function splitHandicap(float $handicap): array
+    {
+        $abs = abs($handicap);
+        $whole = floor($abs);
+        $fraction = $abs - $whole;
+
+        if ($fraction < 0.01) {
+            return [$handicap < 0 ? -$whole : $whole];
+        }
+
+        $first = $handicap < 0 ? -$whole : $whole;
+        $second = $handicap < 0 ? -($whole + 0.5) : ($whole + 0.5);
+
+        return [$first, $second];
     }
 
     private function isWinnerMarket(string $market): bool

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
-import { todayISO, formatTime, VENEZUELA_TIMEZONE } from '../utils/parley';
+import { todayISO, VENEZUELA_TIMEZONE } from '../utils/parley';
 
 const SPORTS = [
   { key: 'football', label: 'Fútbol', icon: '⚽' },
