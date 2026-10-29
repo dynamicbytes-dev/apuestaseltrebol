@@ -26,8 +26,6 @@ class TaquillaShareTest extends TestCase
 
         Carbon::setTestNow(Carbon::parse('2026-10-29 12:00:00'));
 
-        config(['business.supervisor_share' => 0.13]);
-
         $this->agency = Agency::create(['name' => 'Agencia Centro', 'slug' => 'agencia-centro']);
 
         $this->supervisor = User::factory()->create([
@@ -50,6 +48,7 @@ class TaquillaShareTest extends TestCase
             'role' => 'taquilla',
             'agency_id' => $this->agency->id,
             'supervisor_id' => $this->supervisor->id,
+            'commission_percentage' => 13.00,
         ]);
     }
 

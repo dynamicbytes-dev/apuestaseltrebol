@@ -26,6 +26,7 @@ class User extends Authenticatable implements JWTSubject
         'role',
         'agency_id',
         'supervisor_id',
+        'commission_percentage',
     ];
 
     protected $hidden = [
@@ -40,6 +41,7 @@ class User extends Authenticatable implements JWTSubject
             'password' => 'hashed',
             'agency_id' => 'integer',
             'supervisor_id' => 'integer',
+            'commission_percentage' => 'decimal:2',
         ];
     }
 
