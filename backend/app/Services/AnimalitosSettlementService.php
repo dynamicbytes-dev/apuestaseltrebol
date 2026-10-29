@@ -6,6 +6,8 @@ use App\Models\AnimalitoSorteo;
 use App\Models\Lottery;
 use App\Models\Ticket;
 use App\Models\TicketSelection;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Liquida un ticket de animalitos contra el sorteo que la propia apuesta
@@ -15,6 +17,9 @@ use App\Models\TicketSelection;
  * que la validación busca exactamente ese sorteo y no "el último del día".
  * Cada pierna se liquida por separado: solo pagan las que resultaron
  * ganadoras.
+ *
+ * El cálculo va separado de la carga de datos para que la lista de tickets
+ * pueda liquidar muchos de una vez con una sola consulta.
  */
 class AnimalitosSettlementService
 {
@@ -41,11 +46,79 @@ class AnimalitosSettlementService
             );
         }
 
-        $lottery = Lottery::find($selection->lottery_id);
         $sorteo = AnimalitoSorteo::where('lottery_id', $selection->lottery_id)
             ->where('is_resolved', true)
             ->where('sorteo_at', $ticket->sorteo_at)
             ->first();
+
+        return $this->settleWith($ticket, $sorteo ? [$sorteo] : []);
+    }
+
+    /**
+     * Liquida un lote de tickets con los sorteos ya cargados.
+     *
+     * @param  Collection<int, Ticket>  $tickets
+     * @param  array<int, AnimalitoSorteo>  $sorteos
+     */
+    public function settleMany(Collection $tickets, array $sorteos): array
+    {
+        $porClave = [];
+
+        foreach ($sorteos as $sorteo) {
+            $porClave[$this->key($sorteo->lottery_id, $sorteo->sorteo_at)] = $sorteo;
+        }
+
+        $resultados = [];
+
+        foreach ($tickets as $ticket) {
+            $ticket->loadMissing('selections');
+
+            $selection = $ticket->selections->first();
+
+            if (! $selection || ! $selection->lottery_id || ! $ticket->sorteo_at) {
+                $resultados[] = $this->result(
+                    Ticket::SETTLEMENT_REVIEW,
+                    0.0,
+                    [],
+                    'El ticket no declara el sorteo al que pertenece la apuesta.'
+                );
+
+                continue;
+            }
+
+            $sorteo = $porClave[$this->key($selection->lottery_id, $ticket->sorteo_at)] ?? null;
+
+            $resultados[] = $this->settleWith($ticket, $sorteo ? [$sorteo] : []);
+        }
+
+        return $resultados;
+    }
+
+    /**
+     * Calcula la liquidación con el sorteo ya resuelto.
+     *
+     * @param  array<int, AnimalitoSorteo>  $sorteos
+     * @return array{
+     *     status: string,
+     *     payable: float,
+     *     legs: array<int, array<string, mixed>>,
+     *     note: string
+     * }
+     */
+    private function settleWith(Ticket $ticket, array $sorteos): array
+    {
+        $selection = $ticket->selections->first();
+
+        if (! $selection || ! $selection->lottery_id || ! $ticket->sorteo_at) {
+            return $this->result(
+                Ticket::SETTLEMENT_REVIEW,
+                0.0,
+                [],
+                'El ticket no declara el sorteo al que pertenece la apuesta.'
+            );
+        }
+
+        $sorteo = $sorteos[0] ?? null;
 
         if (! $sorteo) {
             return $this->result(
@@ -57,6 +130,7 @@ class AnimalitosSettlementService
             );
         }
 
+        $lottery = Lottery::find($selection->lottery_id);
         $multiplier = (float) ($lottery?->payout_multiplier ?? 1);
         $legs = [];
         $payable = 0.0;
@@ -95,6 +169,18 @@ class AnimalitosSettlementService
             $legs,
             'Gana el N° '.$sorteo->number.' - '.$sorteo->animal.'.'
         );
+    }
+
+    /**
+     * Clave de un sorteo: loteria + instante.
+     */
+    private function key(int $lotteryId, mixed $sorteoAt): string
+    {
+        $instante = $sorteoAt instanceof \DateTimeInterface
+            ? Carbon::instance($sorteoAt)->format('Y-m-d H:i:s')
+            : (string) $sorteoAt;
+
+        return $lotteryId.'|'.$instante;
     }
 
     /**

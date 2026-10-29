@@ -117,6 +117,11 @@ class TicketController extends Controller
 
         $tickets = $query->limit(200)->get();
 
+        // Se liquidan los tickets de modalidades locales para que la tabla
+        // muestre el resultado real (ganador o perdedor) y no solo
+        // "pendiente". El parley se resuelve en el momento del cobro.
+        $this->settlements->settleLocal($tickets);
+
         return response()->json([
             'data' => $tickets,
             'meta' => ['count' => $tickets->count()],
