@@ -4,6 +4,22 @@ import { Plus, X } from 'lucide-react';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
 
+// Horario de juego de las loterías: de 8:00 a 19:00 en punto.
+const HORARIOS_COMUNES = [
+  '08:00',
+  '09:00',
+  '10:00',
+  '11:00',
+  '12:00',
+  '13:00',
+  '14:00',
+  '15:00',
+  '16:00',
+  '17:00',
+  '18:00',
+  '19:00',
+];
+
 export default function LotteryDetail() {
   const { lotteryId } = useParams();
   const [lottery, setLottery] = useState(null);
@@ -207,7 +223,7 @@ export default function LotteryDetail() {
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <input
             className="input"
             type="time"
@@ -223,6 +239,24 @@ export default function LotteryDetail() {
             <Plus size={14} />
             <span>Agregar horario</span>
           </button>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.6rem' }}>
+          {HORARIOS_COMUNES.filter((hora) => !drawTimes.includes(hora)).map((hora) => (
+            <button
+              key={hora}
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                setDrawTimes((prev) => [...prev, hora].sort());
+                setError(null);
+              }}
+              style={{ fontFamily: 'var(--font-mono)', padding: '0.15rem 0.45rem' }}
+              title="Agregar este horario"
+            >
+              + {hora}
+            </button>
+          ))}
         </div>
 
         <button
