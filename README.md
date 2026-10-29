@@ -185,6 +185,14 @@ Para eso están las correcciones manuales (`parley_event_overrides`): el adminis
 
 **Límite del proveedor**: el plan admite 10 peticiones por minuto. Los resultados se cachean 10 minutos y la cartelera avisa en pantalla cuando algún deporte no se pudo consultar por ese límite.
 
+## Impresión del comprobante
+
+El comprobante se imprime solo, en blanco y negro y ajustado al ancho de una **impresora térmica de punto de venta de 80 mm** (área imprimible de 74 mm). Nada más de la página se imprime: ni la barra lateral, ni los botones, ni el tema oscuro.
+
+- La altura de la página se calcula con la **medida real del comprobante**, de modo que el ticket cabe en una sola hoja y el papel no sale con una franja en blanco al final. Chrome ignora `auto` en la altura de página, así que `src/utils/print.js` inyecta la regla exacta antes de imprimir.
+- Para una impresora de **58 mm** hay que cambiar `size: 80mm auto` por `size: 58mm auto` y el ancho de `74mm` por `52mm` en `frontend/src/styles/admin.css`.
+- El historial de movimientos no se imprime: no cabe en un recibo de papel.
+
 ## Analíticas, comisiones e historial
 
 - `GET /api/supervisor/analytics` — métricas de las taquillas a cargo del supervisor.
@@ -405,5 +413,6 @@ La CI (`.github/workflows/ci.yml`) corre en cada push y en cada PR contra `main`
 - [x] Sesión configurable con renovación automática
 - [x] Planificador operativo (sincronización de resultados de loterías)
 - [x] Zona horaria de la operación en hora de Caracas
+- [x] Comprobante ajustado a impresoras térmicas de 80 mm
 - [x] KPI de comisiones por agencia (1.5%) y porcentaje propio por taquilla
 - [x] Un solo estado por ticket, que se actualiza solo al registrar resultados
