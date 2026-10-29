@@ -14,6 +14,8 @@ import SupervisorDashboard from './pages/SupervisorDashboard';
 import Taquillas from './pages/Taquillas';
 import Historial from './pages/Historial';
 import Analiticas from './pages/Analiticas';
+import Cartelera from './pages/Cartelera';
+import CarteleraLayout from './layouts/CarteleraLayout';
 import TaquillaHome from './pages/TaquillaHome';
 import NuevaApuesta from './pages/NuevaApuesta';
 import TaquillaTickets from './pages/TaquillaTickets';
@@ -95,6 +97,17 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+
+        {/* La cartelera está disponible para los tres roles. */}
+        <Route
+          element={
+            <RoleRoute roles={['administrador', 'supervisor', 'taquilla']}>
+              <CarteleraLayout />
+            </RoleRoute>
+          }
+        >
+          <Route path="/cartelera" element={<Cartelera />} />
+        </Route>
 
         <Route
           element={
