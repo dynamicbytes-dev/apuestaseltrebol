@@ -70,6 +70,10 @@ El seeder crea **únicamente** el usuario administrador (sin datos demo):
 
 El administrador registra agencias y supervisores. Cada supervisor inicia sesión en su propio panel y registra las taquillas de su agencia.
 
+### Configuración inicial de una lotería
+
+Una lotería nueva recibe por defecto el horario de juego de 8:00 a 19:00. Ajústalo desde *Loterías → detalle* si esa lotería juega a otras horas.
+
 ## Roles y aislamiento
 
 - **administrador**: acceso global (registro de agencias, supervisores, configuración, analítica consolidada).
@@ -123,6 +127,8 @@ Total:   80.00          Premio potencial: 2.400,00
 ```
 
 - Los **horarios de sorteo** se configuran por lotería (panel de Loterías → detalle). Son las únicas horas que la taquilla puede elegir. Sin horarios, la lotería no admite apuestas.
+  - Horario de juego por defecto: **de 8:00 a 19:00 en punto** (doce horarios, con 12:00 al mediodía). Se asigna automáticamente a las loterías nuevas y se puede ajustar por lotería.
+  - El panel de resultados del administrador ofrece los mismos horarios, para que el resultado se registre a la hora exacta del sorteo.
 - El **total es la suma de los montos**, y lo calcula el backend: el cliente nunca fija el monto.
 - Al cobrar, solo pagan **las piernas ganadoras**: si salió el N° 5, se pagan `50 × multiplicador` y el N° 12 no paga nada. Si no gana ninguna, el ticket no se paga.
 - La validación busca **exactamente el sorteo que declara el ticket**. Una apuesta de las 19:00 nunca se liquidará contra el resultado del sorteo de las 09:00.

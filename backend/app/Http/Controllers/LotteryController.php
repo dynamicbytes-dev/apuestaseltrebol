@@ -86,7 +86,9 @@ class LotteryController extends Controller
                 'slug' => Str::slug($data['name']).'-'.Str::lower(Str::random(5)),
                 'payout_multiplier' => $data['payout_multiplier'] ?? 30,
                 'source_url' => $data['source_url'] ?? null,
-                'draw_times' => $this->normalizeDrawTimes($data['draw_times'] ?? null),
+                'draw_times' => $this->normalizeDrawTimes(
+                    $data['draw_times'] ?? config('animalitos.draw_times')
+                ),
             ]);
 
             $animals = $source
