@@ -134,7 +134,7 @@ export default function Taquillas() {
           {editingId ? 'Editar taquilla' : 'Registrar taquilla'}
         </h2>
 
-        <form className="form-row" onSubmit={handleSubmit}>
+        <form className="form-grid" onSubmit={handleSubmit}>
           <div className="form-field">
             <label htmlFor="taquilla-name">Nombre</label>
             <input
@@ -200,15 +200,17 @@ export default function Taquillas() {
             </span>
           </div>
 
-          <button className="btn btn-primary" type="submit" disabled={saving}>
-            {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Registrar'}
-          </button>
-
-          {editingId && (
-            <button className="btn btn-secondary" type="button" onClick={handleCancel}>
-              Cancelar
+          <div className="form-actions">
+            <button className="btn btn-primary" type="submit" disabled={saving}>
+              {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Registrar'}
             </button>
-          )}
+
+            {editingId && (
+              <button className="btn btn-secondary" type="button" onClick={handleCancel}>
+                Cancelar
+              </button>
+            )}
+          </div>
         </form>
 
         <p className="empty" style={{ paddingTop: '0.75rem' }}>

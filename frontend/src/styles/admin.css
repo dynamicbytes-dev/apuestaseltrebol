@@ -1141,3 +1141,150 @@ select.input:focus {
     padding: 0.75rem 1rem;
   }
 }
+
+/* ==========================================================================
+   Formularios en rejilla
+   ==========================================================================
+   Todos los campos del mismo ancho, en columnas parejas. A diferencia de
+   .form-row (flex con flex: 1), aqui el ancho no depende del contenido.
+   ========================================================================== */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.form-grid .form-field {
+  margin: 0;
+  min-width: 0;
+}
+
+/* Los botones miden lo mismo que los campos para que la fila quede recta. */
+.form-grid .btn {
+  height: 45px;
+  width: 100%;
+}
+
+/* Los botones de accion ocupan su propia fila, al final de la rejilla. */
+.form-grid .form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.form-grid .form-actions .btn {
+  width: auto;
+  min-width: 150px;
+}
+
+/* ==========================================================================
+   Impresion del comprobante en impresoras termicas (punto de venta)
+   ==========================================================================
+   El comprobante se imprime solo, en blanco y negro, ajustado al ancho del
+   papel de 80 mm (area imprimible de 74 mm). Para una impresora de 58 mm
+   cambia "size: 80mm auto" por "size: 58mm auto" y el ancho de 74 mm por
+   52 mm.
+
+   La altura de la pagina la fija src/utils/print.js con la medida real del
+   comprobante: Chrome ignora "auto" en la altura, y asi el papel no sale con
+   una franja en blanco al final.
+   ========================================================================== */
+
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 74mm;
+    max-width: 74mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  /* Fuera todo excepto el comprobante. */
+  body * {
+    visibility: hidden !important;
+  }
+
+  #printable-ticket,
+  #printable-ticket * {
+    visibility: visible !important;
+  }
+
+  /* El overlay del modal se convierte en un bloque normal al principio de la
+     pagina: si se queda posicionado, el comprobante saldria descentrado. */
+  .modal-overlay {
+    position: static !important;
+    display: block !important;
+    inset: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    overflow: visible !important;
+  }
+
+  .modal-overlay > .card {
+    position: static !important;
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  #printable-ticket {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace !important;
+    font-size: 9pt !important;
+    line-height: 1.35 !important;
+  }
+
+  /* Las impresoras termicas no imprimen bien los fondos de color: el
+     comprobante sale en blanco y negro. */
+  #printable-ticket * {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    border-color: #000 !important;
+  }
+
+  #printable-ticket strong {
+    font-weight: 700 !important;
+  }
+
+  /* Los movimientos no caben en un recibo de papel: solo en pantalla. */
+  #printable-ticket [data-print='hide'] {
+    display: none !important;
+  }
+
+  /* Que una linea no se parta entre dos paginas. */
+  #printable-ticket > div,
+  #printable-ticket > div > div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

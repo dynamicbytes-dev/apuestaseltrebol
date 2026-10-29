@@ -17,6 +17,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import api from '../api/client';
+import { printTicket } from '../utils/print';
 import { getErrorMessage } from '../utils/errors';
 import {
   TICKET_TYPE_LABELS,
@@ -1523,7 +1524,7 @@ export default function NuevaApuesta() {
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => window.print()}
+                onClick={() => printTicket()}
               >
                 <Printer size={16} />
                 <span>Imprimir Ticket</span>
