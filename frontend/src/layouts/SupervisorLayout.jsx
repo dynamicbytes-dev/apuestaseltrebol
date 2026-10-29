@@ -10,6 +10,7 @@ import {
   Clock,
   Building,
   History,
+  BarChart3,
 } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import SessionTimer from '../components/SessionTimer';
@@ -21,6 +22,7 @@ const navItems = [
   { to: '/supervisor', label: 'Panel Supervisor', end: true, icon: LayoutDashboard },
   { to: '/supervisor/taquillas', label: 'Gestión de Taquillas', icon: Store },
   { to: '/supervisor/historial', label: 'Historial de Tickets', icon: History },
+  { to: '/supervisor/analiticas', label: 'Analíticas', icon: BarChart3 },
 ];
 
 export default function SupervisorLayout() {

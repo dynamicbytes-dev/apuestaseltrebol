@@ -14,6 +14,7 @@ import {
   X,
   Clock,
   Sparkles,
+  BarChart3,
 } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import SessionTimer from '../components/SessionTimer';
@@ -29,6 +30,7 @@ const navItems = [
   { to: '/races', label: 'Hipismo & Carreras', icon: Flame },
   { to: '/parley', label: 'Parley Deportivo', icon: Gamepad2 },
   { to: '/limits', label: 'Topes & Reglas', icon: Sliders },
+  { to: '/analiticas', label: 'Analíticas', icon: BarChart3 },
 ];
 
 export default function AdminLayout() {

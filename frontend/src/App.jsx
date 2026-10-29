@@ -12,6 +12,7 @@ import Parley from './pages/Parley';
 import SupervisorDashboard from './pages/SupervisorDashboard';
 import Taquillas from './pages/Taquillas';
 import Historial from './pages/Historial';
+import Analiticas from './pages/Analiticas';
 import TaquillaHome from './pages/TaquillaHome';
 import NuevaApuesta from './pages/NuevaApuesta';
 import TaquillaTickets from './pages/TaquillaTickets';
@@ -87,6 +88,7 @@ function App() {
           <Route path="/races/:raceId" element={<RaceDetail />} />
           <Route path="/parley" element={<Parley />} />
           <Route path="/limits" element={<Limits />} />
+          <Route path="/analiticas" element={<Analiticas />} />
         </Route>
 
         <Route
@@ -100,6 +102,7 @@ function App() {
           <Route index element={<SupervisorDashboard />} />
           <Route path="taquillas" element={<Taquillas />} />
           <Route path="historial" element={<Historial />} />
+          <Route path="analiticas" element={<Analiticas />} />
         </Route>
 
         <Route

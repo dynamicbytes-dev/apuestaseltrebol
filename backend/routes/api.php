@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AgencyController;
 use App\Http\Controllers\AnimalitoSorteoController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HorseController;
@@ -68,10 +69,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     Route::get('/parley/sports', [ParleyController::class, 'sports']);
     Route::get('/parley/events', [ParleyController::class, 'events']);
     Route::get('/parley/events/{sport}/{eventId}/odds', [ParleyController::class, 'odds']);
+
+    Route::get('/analytics', [AnalyticsController::class, 'global']);
 });
 
 Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->group(function () {
     Route::get('/dashboard', [SupervisorDashboardController::class, 'index']);
+    Route::get('/analytics', [AnalyticsController::class, 'agency']);
 
     Route::get('/taquillas', [TaquillaController::class, 'index']);
     Route::post('/taquillas', [TaquillaController::class, 'store']);
