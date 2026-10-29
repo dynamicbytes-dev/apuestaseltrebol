@@ -59,6 +59,8 @@ class AnimalitoSorteoController extends Controller
                 'number' => (string) $animal->number,
                 'animal' => $animal->animal,
                 'es_manual' => true,
+                // Ingreso manual del administrador: siempre es un resultado real.
+                'is_resolved' => true,
             ]
         );
 

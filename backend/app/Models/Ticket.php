@@ -23,6 +23,18 @@ class Ticket extends Model
 
     public const TYPE_PARLEY = 'parley';
 
+    /** La liquidación todavía no pudo resolverse. */
+    public const SETTLEMENT_PENDING = 'pending';
+
+    /** La jugada es ganadora: se puede pagar. */
+    public const SETTLEMENT_WON = 'won';
+
+    /** La jugada es perdedora: no se puede pagar. */
+    public const SETTLEMENT_LOST = 'lost';
+
+    /** La jugada requiere revisión manual del supervisor. */
+    public const SETTLEMENT_REVIEW = 'review';
+
     protected $fillable = [
         'code',
         'agency_id',
@@ -33,6 +45,8 @@ class Ticket extends Model
         'total_odds',
         'potential_payout',
         'status',
+        'settlement_status',
+        'settlement_note',
         'paid_amount',
         'paid_at',
         'cancelled_at',
@@ -46,6 +60,7 @@ class Ticket extends Model
         'stake' => 'decimal:2',
         'total_odds' => 'decimal:4',
         'potential_payout' => 'decimal:2',
+        'settlement_status' => 'string',
         'paid_amount' => 'decimal:2',
         'paid_at' => 'datetime',
         'cancelled_at' => 'datetime',
@@ -69,5 +84,10 @@ class Ticket extends Model
     public function selections(): HasMany
     {
         return $this->hasMany(TicketSelection::class);
+    }
+
+    public function movements(): HasMany
+    {
+        return $this->hasMany(TicketMovement::class)->latest();
     }
 }

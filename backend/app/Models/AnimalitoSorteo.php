@@ -18,11 +18,13 @@ class AnimalitoSorteo extends Model
         'caballo_ganador',
         'sorteo_at',
         'es_manual',
+        'is_resolved',
     ];
 
     protected $casts = [
         'number' => 'string',
         'es_manual' => 'boolean',
+        'is_resolved' => 'boolean',
         'sorteo_at' => 'datetime',
     ];
 

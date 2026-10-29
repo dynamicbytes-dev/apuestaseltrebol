@@ -42,6 +42,7 @@ class LotteryController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:lotteries,name'],
             'payout_multiplier' => ['sometimes', 'numeric', 'min:1', 'max:1000'],
+            'source_url' => ['nullable', 'url', 'max:255'],
             'animals' => ['sometimes', 'array', 'min:1', 'max:100'],
             // Texto de 1 o 2 dígitos: "0", "00", "1" ... "36". distinct:strict compara
             // como cadenas exactas (el modo laxo de PHP considera "0" == "00").
@@ -78,6 +79,7 @@ class LotteryController extends Controller
                 'name' => $data['name'],
                 'slug' => Str::slug($data['name']).'-'.Str::lower(Str::random(5)),
                 'payout_multiplier' => $data['payout_multiplier'] ?? 30,
+                'source_url' => $data['source_url'] ?? null,
             ]);
 
             $animals = $source
@@ -120,6 +122,7 @@ class LotteryController extends Controller
             ],
             'is_active' => ['required', 'boolean'],
             'payout_multiplier' => ['sometimes', 'numeric', 'min:1', 'max:1000'],
+            'source_url' => ['nullable', 'url', 'max:255'],
         ], [
             'name.required' => 'El nombre de la lotería es obligatorio.',
             'name.unique' => 'Ya existe una lotería con ese nombre.',
@@ -127,6 +130,7 @@ class LotteryController extends Controller
             'payout_multiplier.numeric' => 'El multiplicador de pago debe ser un número.',
             'payout_multiplier.min' => 'El multiplicador de pago debe ser al menos 1.',
             'payout_multiplier.max' => 'El multiplicador de pago no puede superar 1000.',
+            'source_url.url' => 'La URL de origen no es válida.',
         ]);
 
         $lottery->update($data);

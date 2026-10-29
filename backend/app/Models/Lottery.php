@@ -15,6 +15,7 @@ class Lottery extends Model
         'slug',
         'is_active',
         'payout_multiplier',
+        'source_url',
     ];
 
     protected $casts = [
