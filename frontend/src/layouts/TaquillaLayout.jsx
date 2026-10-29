@@ -10,6 +10,7 @@ import {
   X,
   Clock,
   Store,
+  CalendarDays,
 } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import SessionTimer from '../components/SessionTimer';
@@ -19,6 +20,7 @@ import '../styles/admin.css';
 
 const navItems = [
   { to: '/taquilla', label: 'Inicio', icon: LayoutDashboard, end: true },
+  { to: '/cartelera', label: 'Cartelera de Juegos', icon: CalendarDays },
   { to: '/taquilla/nueva', label: 'Nueva Apuesta', icon: PlusCircle },
   { to: '/taquilla/tickets', label: 'Consultar & Pagar Tickets', icon: Receipt },
 ];

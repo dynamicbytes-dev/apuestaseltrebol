@@ -141,6 +141,23 @@ Se mantienen como estaban: una sola selección por ticket, todo o nada.
 - **Hipismo**: se compara el ejemplar jugado contra el ganador oficial de la carrera. Si la carrera no está finalizada, no se puede cobrar.
 - **Parley**: cada pierna se liquida contra el resultado oficial del evento (ganador 1X2, doble oportunidad, total de goles y ambos equipos marcan). Todo lo demás pasa a revisión manual del supervisor, que decide con `POST /api/supervisor/tickets/{ticket}/review`.
 
+## Cartelera de juegos
+
+Módulo común a los tres roles: el calendario unificado de todo lo que se puede apostar, con sus resultados.
+
+- **Filtros**: rango de fechas, tipo de apuesta (parley, hipismo, animalitos), deporte, liga, estado, lotería y búsqueda por texto.
+- **Parley**: los eventos del proveedor con su horario, liga, marcador y estado. Si el proveedor fechó mal un partido, el administrador puede corregir la fecha desde la propia cartelera: la corrección se aplica en todas partes (apuestas, liquidación y cartelera) y el partido cambia de día. La fecha original del proveedor se muestra al lado de la corregida.
+- **Hipismo**: las carreras con su podio y sus ejemplares.
+- **Animalitos**: los sorteos con el número ganador, el animalito y si el resultado fue automático o manual.
+
+### Sobre las fechas del proveedor
+
+El proveedor puede devolver **fechas equivocadas** para un partido: jornadas movidas o partidos aplazados. La aplicación convierte todo a hora de Caracas, pero no puede deducir la fecha correcta de un dato que viene mal.
+
+Para eso están las correcciones manuales (`parley_event_overrides`): el administrador corrige la fecha una vez y la corrección se aplica en todas partes. Cuando hay correcciones de un deporte, la aplicación consulta también los días vecinos al proveedor y vuelve a agrupar por la fecha efectiva, de modo que el partido aparece en el día correcto y desaparece del anterior.
+
+**Límite del proveedor**: el plan admite 10 peticiones por minuto. Los resultados se cachean 10 minutos y la cartelera avisa en pantalla cuando algún deporte no se pudo consultar por ese límite.
+
 ## Analíticas e historial
 
 - `GET /api/supervisor/analytics` — métricas de la agencia del supervisor.
@@ -203,6 +220,9 @@ La sesión usa tokens JWT. La duración se toma de `JWT_TTL` (en minutos, por de
 | `GET` | `/api/parley/sports` | Deportes disponibles |
 | `GET` | `/api/parley/events` | Eventos por deporte y fecha |
 | `GET` | `/api/parley/events/{sport}/{eventId}/odds` | Cuotas de un evento |
+| `GET` | `/api/games` | Cartelera de juegos (todas las modalidades, con filtros) |
+| `GET` | `/api/games/leagues` | Listado de ligas de un deporte |
+| `GET` | `/api/games/lotteries` | Loterías con su horario |
 
 ### Administrador (`/api/admin`)
 
@@ -225,6 +245,9 @@ La sesión usa tokens JWT. La duración se toma de `JWT_TTL` (en minutos, por de
 | `PUT` `DELETE` | `/races/{race}/horses/{horse}` | Editar y eliminar ejemplar |
 | `PATCH` | `/races/{race}/horses/{horse}/retire` | Retirar o reactivar ejemplar |
 | `GET` | `/parley/status` | Estado de la cuota del plan |
+| `GET` | `/parley/schedule-overrides` | Correcciones de calendario registradas |
+| `PUT` | `/parley/events/{sport}/{eventId}/schedule` | Corregir la fecha de un partido |
+| `DELETE` | `/parley/events/{sport}/{eventId}/schedule` | Quitar la corrección |
 | `GET` | `/analytics` | Analítica global con desglose por agencia |
 
 ### Supervisor (`/api/supervisor`)
@@ -314,6 +337,8 @@ La CI (`.github/workflows/ci.yml`) corre en cada push y en cada PR contra `main`
 - [x] Sorteo declarado por la apuesta y pago por pierna ganadora
 - [x] Flujo de revisión manual para jugadas que no se pueden liquidar solas
 - [x] Analíticas por agencia e historial de movimientos
+- [x] Cartelera de juegos con filtros, disponible en los tres paneles
+- [x] Corrección manual del calendario de partidos con fecha errónea
 - [x] Sesión configurable con renovación automática
 - [x] Planificador operativo (sincronización de resultados de loterías)
 - [x] Zona horaria de la operación en hora de Caracas

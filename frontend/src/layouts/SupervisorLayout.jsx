@@ -11,6 +11,7 @@ import {
   Building,
   History,
   BarChart3,
+  CalendarDays,
 } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import SessionTimer from '../components/SessionTimer';
@@ -20,6 +21,7 @@ import '../styles/admin.css';
 
 const navItems = [
   { to: '/supervisor', label: 'Panel Supervisor', end: true, icon: LayoutDashboard },
+  { to: '/cartelera', label: 'Cartelera de Juegos', icon: CalendarDays },
   { to: '/supervisor/taquillas', label: 'Gestión de Taquillas', icon: Store },
   { to: '/supervisor/historial', label: 'Historial de Tickets', icon: History },
   { to: '/supervisor/analiticas', label: 'Analíticas', icon: BarChart3 },

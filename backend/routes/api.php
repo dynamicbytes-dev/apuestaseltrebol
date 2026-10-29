@@ -5,9 +5,11 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AnimalitoSorteoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GameBoardController;
 use App\Http\Controllers\HorseController;
 use App\Http\Controllers\LotteryController;
 use App\Http\Controllers\ParleyController;
+use App\Http\Controllers\ParleyScheduleController;
 use App\Http\Controllers\RaceController;
 use App\Http\Controllers\SupervisorController;
 use App\Http\Controllers\SupervisorDashboardController;
@@ -29,6 +31,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/parley/sports', [ParleyController::class, 'sports']);
     Route::get('/parley/events', [ParleyController::class, 'events']);
     Route::get('/parley/events/{sport}/{eventId}/odds', [ParleyController::class, 'odds']);
+
+    // Cartelera de juegos: disponible para los tres roles.
+    Route::get('/games', [GameBoardController::class, 'index']);
+    Route::get('/games/leagues', [GameBoardController::class, 'leagues']);
+    Route::get('/games/lotteries', [GameBoardController::class, 'lotteries']);
 });
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
@@ -70,6 +77,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     Route::get('/parley/sports', [ParleyController::class, 'sports']);
     Route::get('/parley/events', [ParleyController::class, 'events']);
     Route::get('/parley/events/{sport}/{eventId}/odds', [ParleyController::class, 'odds']);
+
+    // Correccion manual del calendario de un evento: el proveedor puede
+    // fechar mal un partido y la correccion se aplica en toda la app.
+    Route::get('/parley/schedule-overrides', [ParleyScheduleController::class, 'index']);
+    Route::put('/parley/events/{sport}/{eventId}/schedule', [ParleyScheduleController::class, 'update']);
+    Route::delete('/parley/events/{sport}/{eventId}/schedule', [ParleyScheduleController::class, 'destroy']);
 
     Route::get('/analytics', [AnalyticsController::class, 'global']);
 });
