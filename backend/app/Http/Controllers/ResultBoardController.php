@@ -14,13 +14,19 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
- * Cartelera de juegos: el calendario unificado de todo lo que se puede
- * apostar, con sus resultados. Available para los tres roles.
+ * Cartelera de resultados: el historial unificado de todo lo que se pudo
+ * apostar y su desenlace. Available para los tres roles.
  */
-class GameBoardController extends Controller
+class ResultBoardController extends Controller
 {
     /** Días máximos que se pueden consultar de una vez. */
     private const MAX_DAYS = 4;
+
+    /** Estados que solo tienen sentido en las carreras de hipismo. */
+    private const STATUS_HIPISMO = ['pending', 'finished'];
+
+    /** Estados que solo tienen sentido en los sorteos de animalitos. */
+    private const STATUS_ANIMALITOS = ['resolved', 'unresolved'];
 
     public function __construct(private readonly SportsApiService $sports) {}
 
@@ -43,10 +49,11 @@ class GameBoardController extends Controller
         ]);
 
         [$from, $to] = $this->resolvePeriod($data['from'] ?? null, $data['to'] ?? null);
-        $type = $data['type'] ?? null;
+        $type = $this->resolveType($data);
 
         $result = [
             'period' => ['from' => $from, 'to' => $to],
+            'type' => $type,
             'parley' => [],
             'hipismo' => [],
             'animalitos' => [],
@@ -74,6 +81,44 @@ class GameBoardController extends Controller
         ];
 
         return response()->json(['data' => $result]);
+    }
+
+    /**
+     * Modalidad que se muestra en la cartelera.
+     *
+     * Un filtro que solo tiene sentido para una modalidad acota la cartelera
+     * a esa modalidad: si se elige una loteria, lo que se busca son los
+     * sorteos de animalitos de esa loteria, no los partidos de parley.
+     */
+    private function resolveType(array $filters): ?string
+    {
+        if (! empty($filters['type'])) {
+            return $filters['type'];
+        }
+
+        if (! empty($filters['lottery_id'])) {
+            return 'animalitos';
+        }
+
+        if (! empty($filters['sport']) || ! empty($filters['league'])) {
+            return 'parley';
+        }
+
+        $status = strtolower((string) ($filters['status'] ?? ''));
+
+        if (in_array($status, self::STATUS_HIPISMO, true)) {
+            return 'hipismo';
+        }
+
+        if (in_array($status, self::STATUS_ANIMALITOS, true)) {
+            return 'animalitos';
+        }
+
+        if ($status !== '') {
+            return 'parley';
+        }
+
+        return null;
     }
 
     /**
@@ -155,7 +200,9 @@ class GameBoardController extends Controller
                         return false;
                     }
 
-                    if (! empty($filters['status'])) {
+                    // Los estados de hipismo y animalitos no aplican al parley.
+                    if (! empty($filters['status'])
+                        && ! in_array(strtolower($filters['status']), array_merge(self::STATUS_HIPISMO, self::STATUS_ANIMALITOS), true)) {
                         $short = strtoupper((string) ($event['status']['short'] ?? ''));
 
                         if ($short !== strtoupper($filters['status'])) {
@@ -210,7 +257,8 @@ class GameBoardController extends Controller
         return Race::with(['horses' => fn ($query) => $query->orderBy('number'), 'winner', 'second', 'third'])
             ->whereDate('race_date', '>=', $from)
             ->whereDate('race_date', '<=', $to)
-            ->when(! empty($filters['status']), fn ($query) => $query->where('status', $filters['status']))
+            ->when(! empty($filters['status']) && in_array(strtolower($filters['status']), self::STATUS_HIPISMO, true),
+                fn ($query) => $query->where('status', $filters['status']))
             ->when(! empty($filters['search']), function ($query) use ($filters) {
                 // LOWER + LIKE funciona igual en PostgreSQL y en SQLite,
                 // a diferencia de ilike.
@@ -253,6 +301,8 @@ class GameBoardController extends Controller
             ->whereDate('sorteo_at', '>=', $from)
             ->whereDate('sorteo_at', '<=', $to)
             ->when(! empty($filters['lottery_id']), fn ($query) => $query->where('lottery_id', $filters['lottery_id']))
+            ->when(! empty($filters['status']) && in_array(strtolower($filters['status']), self::STATUS_ANIMALITOS, true),
+                fn ($query) => $query->where('is_resolved', strtolower($filters['status']) === 'resolved'))
             ->when(! empty($filters['search']), function ($query) use ($filters) {
                 $term = '%'.mb_strtolower($filters['search']).'%';
 

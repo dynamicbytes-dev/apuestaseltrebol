@@ -20,7 +20,7 @@ import '../styles/admin.css';
 
 const navItems = [
   { to: '/taquilla', label: 'Inicio', icon: LayoutDashboard, end: true },
-  { to: '/cartelera', label: 'Cartelera de Juegos', icon: CalendarDays },
+  { to: '/cartelera', label: 'Cartelera de Resultados', icon: CalendarDays },
   { to: '/taquilla/nueva', label: 'Nueva Apuesta', icon: PlusCircle },
   { to: '/taquilla/tickets', label: 'Consultar & Pagar Tickets', icon: Receipt },
 ];
