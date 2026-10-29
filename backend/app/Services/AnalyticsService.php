@@ -223,6 +223,48 @@ class AnalyticsService
     }
 
     /**
+     * Ventas y porciento de cada taquilla.
+     *
+     * El porciento del supervisor es por taquilla: cada una tiene su propio
+     * 13% sobre lo que vendio.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function taquillaSales(?string $from, ?string $to, ?int $supervisorId = null): array
+    {
+        [$from, $to] = $this->resolvePeriod($from, $to);
+
+        $percentage = (float) config('business.supervisor_share', 0.13);
+
+        $query = Ticket::query()
+            ->whereDate('created_at', '>=', $from)
+            ->whereDate('created_at', '<=', $to);
+
+        if ($supervisorId !== null) {
+            $query->where('supervisor_id', $supervisorId);
+        }
+
+        return $query
+            ->selectRaw('taquilla_id')
+            ->selectRaw('COUNT(*) as tickets')
+            ->selectRaw('COALESCE(SUM(stake), 0) as stake')
+            ->selectRaw('COALESCE(SUM(paid_amount), 0) as paid')
+            ->groupBy('taquilla_id')
+            ->get()
+            ->map(fn ($row) => [
+                'taquilla_id' => (int) $row->taquilla_id,
+                'tickets' => (int) $row->tickets,
+                'stake' => round((float) $row->stake, 2),
+                'paid' => round((float) $row->paid, 2),
+                'net' => round((float) $row->stake - (float) $row->paid, 2),
+                'share_percentage' => $percentage * 100,
+                'share_amount' => round((float) $row->stake * $percentage, 2),
+            ])
+            ->keyBy('taquilla_id')
+            ->all();
+    }
+
+    /**
      * Ventas y porciento de cada agencia.
      *
      * Una agencia puede tener tantas taquillas como quiera: las ventas de

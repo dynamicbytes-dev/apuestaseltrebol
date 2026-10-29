@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { Calendar, Percent } from 'lucide-react';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
+import { formatAmount } from '../utils/tickets';
 
 const emptyForm = { name: '', email: '', password: '' };
 
@@ -12,10 +14,17 @@ export default function Taquillas() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
 
-  const loadTaquillas = async () => {
+  const loadTaquillas = useCallback(async () => {
     try {
-      const response = await api.get('/supervisor/taquillas');
+      const response = await api.get('/supervisor/taquillas', {
+        params: {
+          from: from || undefined,
+          to: to || undefined,
+        },
+      });
       setTaquillas(response.data.data);
       setError(null);
     } catch (err) {
@@ -23,11 +32,14 @@ export default function Taquillas() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [from, to]);
 
   useEffect(() => {
     loadTaquillas();
-  }, []);
+  }, [loadTaquillas]);
+
+  // El porciento es el mismo para todas las taquillas.
+  const sharePercentage = taquillas[0]?.sales?.share_percentage ?? 13;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -181,12 +193,78 @@ export default function Taquillas() {
         ) : taquillas.length === 0 ? (
           <p className="empty">Aún no has registrado taquillas.</p>
         ) : (
-          <table className="table">
+          <>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-end',
+                gap: '0.85rem',
+                flexWrap: 'wrap',
+                marginBottom: '1rem',
+                padding: '0.75rem 0.9rem',
+                background: 'var(--bg-input)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div className="form-field" style={{ margin: 0 }}>
+                <label htmlFor="taq-from">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Calendar size={14} color="#38bdf8" />
+                    <strong>Ventas desde</strong>
+                  </span>
+                </label>
+                <input
+                  id="taq-from"
+                  className="input"
+                  type="date"
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                />
+              </div>
+
+              <div className="form-field" style={{ margin: 0 }}>
+                <label htmlFor="taq-to">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Calendar size={14} color="#38bdf8" />
+                    <strong>Hasta</strong>
+                  </span>
+                </label>
+                <input
+                  id="taq-to"
+                  className="input"
+                  type="date"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  marginLeft: 'auto',
+                  fontSize: '0.78rem',
+                  color: 'var(--text-tertiary)',
+                }}
+              >
+                <Percent size={14} color="#34d399" />
+                <span>
+                  Tu comisión de cada taquilla:{' '}
+                  <strong style={{ color: '#34d399' }}>{sharePercentage}%</strong> de sus ventas
+                </span>
+              </div>
+            </div>
+
+            <table className="table">
             <thead>
               <tr>
                 <th>Nombre</th>
                 <th>Email</th>
                 <th>Registrada</th>
+                <th>Ventas</th>
+                <th>Comisión ({sharePercentage}%)</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -199,6 +277,15 @@ export default function Taquillas() {
                     {taquilla.created_at
                       ? new Date(taquilla.created_at).toLocaleDateString('es-VE')
                       : '—'}
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>
+                    {formatAmount(taquilla.sales?.stake)}
+                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', marginLeft: '0.35rem' }}>
+                      ({taquilla.sales?.tickets ?? 0} tickets)
+                    </span>
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399', fontWeight: 700 }}>
+                    {formatAmount(taquilla.sales?.share_amount)}
                   </td>
                   <td>
                     <div className="table-actions">
@@ -218,8 +305,9 @@ export default function Taquillas() {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </>
         )}
       </section>
     </div>
