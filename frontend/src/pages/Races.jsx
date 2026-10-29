@@ -402,7 +402,7 @@ export default function Races() {
             <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', color: '#93c5fd' }}>
               📍 1. Datos de la Jornada / Hipódromo
             </h3>
-            <div className="form-row">
+            <div className="form-grid">
               <div className="form-field">
                 <label htmlFor="race-track">Hipódromo</label>
                 <input
