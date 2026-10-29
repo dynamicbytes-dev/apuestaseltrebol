@@ -333,6 +333,7 @@ export default function Analiticas() {
                           <th>Apostado</th>
                           <th>Pagado</th>
                           <th>Resultado</th>
+                          <th>Comisión</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -344,6 +345,12 @@ export default function Analiticas() {
                             <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399' }}>{formatAmount(row.paid)}</td>
                             <td style={{ fontFamily: 'var(--font-mono)', color: row.net >= 0 ? '#34d399' : '#ef4444' }}>
                               {formatAmount(row.net)}
+                            </td>
+                            <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399', fontWeight: 700 }}>
+                              {formatAmount(row.share_amount)}
+                              <span style={{ color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: '0.3rem' }}>
+                                ({Math.round(row.share_percentage)}%)
+                              </span>
                             </td>
                           </tr>
                         ))}

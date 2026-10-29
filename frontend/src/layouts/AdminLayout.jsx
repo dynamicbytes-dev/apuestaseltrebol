@@ -8,7 +8,6 @@ import {
   Ticket,
   Flame,
   Gamepad2,
-  Sliders,
   LogOut,
   Menu,
   X,
@@ -31,7 +30,6 @@ const navItems = [
   { to: '/lotteries', label: 'Loterías & Animalitos', icon: Ticket },
   { to: '/races', label: 'Hipismo & Carreras', icon: Flame },
   { to: '/parley', label: 'Parley Deportivo', icon: Gamepad2 },
-  { to: '/limits', label: 'Topes & Reglas', icon: Sliders },
   { to: '/analiticas', label: 'Analíticas', icon: BarChart3 },
 ];
 

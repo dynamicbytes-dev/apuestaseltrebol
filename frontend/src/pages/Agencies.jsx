@@ -182,6 +182,41 @@ export default function Agencies() {
             />
           </div>
 
+          <div style={{ display: 'flex', gap: '0.35rem', paddingBottom: '0.15rem' }}>
+            {[
+              { label: 'Hoy', days: 0 },
+              { label: '7 días', days: 7 },
+              { label: '30 días', days: 30 },
+            ].map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  const hasta = new Date();
+                  const desde = new Date();
+                  desde.setDate(hasta.getDate() - preset.days);
+
+                  setFrom(desde.toISOString().slice(0, 10));
+                  setTo(hasta.toISOString().slice(0, 10));
+                }}
+              >
+                {preset.label}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                setFrom('');
+                setTo('');
+              }}
+            >
+              Todo
+            </button>
+          </div>
+
           <div
             style={{
               display: 'flex',

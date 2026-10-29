@@ -159,6 +159,10 @@ class TicketController extends Controller
 
         $agency = $taquilla->agency;
 
+        // Topes vigentes: los de la taquilla si tiene los suyos, si no los de
+        // su agencia.
+        $topes = $taquilla->effectiveLimits();
+
         $prepared = match ($base['type']) {
             Ticket::TYPE_ANIMALITOS => $this->prepareAnimalitos($request),
             Ticket::TYPE_HIPISMO => $this->prepareHipismo($request, (float) $base['stake']),
@@ -167,21 +171,21 @@ class TicketController extends Controller
 
         $stake = round((float) ($prepared['stake'] ?? $base['stake']), 2);
 
-        if ($agency?->max_bet_amount !== null && $stake > (float) $agency->max_bet_amount) {
+        if ($topes['max_bet_amount'] !== null && $stake > (float) $topes['max_bet_amount']) {
             return $this->limitError(
-                'El monto máximo por apuesta de tu agencia es '.$this->money($agency->max_bet_amount).'.'
+                'El monto máximo por apuesta de tu agencia es '.$this->money($topes['max_bet_amount']).'.'
             );
         }
 
         $potentialPayout = round($stake * $prepared['odds'], 2);
 
         if (
-            $agency?->max_ticket_payout !== null
-            && $potentialPayout > (float) $agency->max_ticket_payout
+            $topes['max_ticket_payout'] !== null
+            && $potentialPayout > (float) $topes['max_ticket_payout']
         ) {
             return $this->limitError(
                 'La ganancia potencial ('.$this->money($potentialPayout).') supera el máximo por ticket de tu agencia ('
-                .$this->money($agency->max_ticket_payout).').'
+                .$this->money($topes['max_ticket_payout']).').'
             );
         }
 

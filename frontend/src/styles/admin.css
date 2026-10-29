@@ -413,6 +413,14 @@
   gap: 0.5rem;
 }
 
+/* El icono y el texto de un titulo van juntos, aunque el titulo tenga una
+   accion a la derecha. */
+.card-title-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 /* Modern Stats KPI Grid */
 .stats-grid {
   display: grid;
