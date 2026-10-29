@@ -15,6 +15,8 @@ class AnimalitoSorteoController extends Controller
     {
         $query = AnimalitoSorteo::with('lottery');
 
+        $date = $request->filled('date') ? $request->query('date') : now()->toDateString();
+
         if ($request->filled('lottery_id')) {
             $query->where('lottery_id', $request->query('lottery_id'));
         }
@@ -25,8 +27,23 @@ class AnimalitoSorteoController extends Controller
 
         $sorteos = $query->orderByDesc('sorteo_at')->limit(100)->get();
 
+        // Loterías activas que todavía no tienen un resultado resuelto para
+        // la fecha: son las que el administrador debe registrar a mano.
+        $pending = Lottery::where('is_active', true)
+            ->whereDoesntHave('sorteos', function ($query) use ($date) {
+                $query->whereDate('sorteo_at', $date)->where('is_resolved', true);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug', 'source_url'])
+            ->map(fn (Lottery $lottery) => [
+                'id' => $lottery->id,
+                'name' => $lottery->name,
+                'has_source' => ! blank($lottery->source_url),
+            ]);
+
         return response()->json([
             'data' => $sorteos,
+            'pending' => $pending,
         ]);
     }
 

@@ -43,6 +43,7 @@ export default function Lotteries() {
 
   // Estados para pestaña de Resultados Oficiales
   const [sorteos, setSorteos] = useState([]);
+  const [pendingSorteos, setPendingSorteos] = useState([]);
   const [loadingSorteos, setLoadingSorteos] = useState(false);
   const [filterDate, setFilterDate] = useState(todayISO());
   const [filterLotteryId, setFilterLotteryId] = useState('');
@@ -80,6 +81,7 @@ export default function Lotteries() {
         },
       });
       setSorteos(res.data.data);
+      setPendingSorteos(res.data.pending ?? []);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -586,6 +588,19 @@ export default function Lotteries() {
                 </button>
               </div>
             </div>
+
+            {pendingSorteos.length > 0 && (
+              <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '0.85rem' }}>
+                <strong>Pendientes de registrar:</strong>{' '}
+                {pendingSorteos.map((l) => l.name).join(', ')}. Sin un resultado oficial
+                no se pueden cobrar los tickets de esas loterías.
+                {!pendingSorteos.some((l) => l.has_source) && (
+                  <span style={{ display: 'block', marginTop: '0.35rem' }}>
+                    Ninguna tiene fuente de consulta configurada: regístralas manualmente.
+                  </span>
+                )}
+              </div>
+            )}
 
             {loadingSorteos ? (
               <p className="empty">Cargando resultados de sorteos...</p>

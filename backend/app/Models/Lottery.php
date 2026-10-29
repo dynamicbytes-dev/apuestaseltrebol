@@ -28,4 +28,9 @@ class Lottery extends Model
         return $this->hasMany(LotteryAnimal::class)
             ->orderByRaw('CAST(number AS INTEGER) ASC, LENGTH(number) ASC');
     }
+
+    public function sorteos(): HasMany
+    {
+        return $this->hasMany(AnimalitoSorteo::class);
+    }
 }
