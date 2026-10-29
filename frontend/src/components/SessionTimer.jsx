@@ -1,34 +1,52 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Timer } from 'lucide-react';
+import {
+  getSecondsRemaining,
+  refreshSession,
+  clearSession,
+  shouldRefreshSession,
+} from '../utils/session';
 
 export default function SessionTimer() {
   const navigate = useNavigate();
-  const [secondsLeft, setSecondsLeft] = useState(() => {
-    const expiresAt = Number(localStorage.getItem('sessionExpiresAt') || 0);
-    if (!expiresAt) return 300; // 5 minutos por defecto
-    const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
-    return remaining;
-  });
+  const [secondsLeft, setSecondsLeft] = useState(() => getSecondsRemaining());
+  const [renewing, setRenewing] = useState(false);
 
-  useEffect(() => {
-    // Si no existe sessionExpiresAt pero hay sesión activa, inicializarla a 5 minutos
-    let expiresAt = Number(localStorage.getItem('sessionExpiresAt') || 0);
-    if (!expiresAt) {
-      expiresAt = Date.now() + 5 * 60 * 1000;
-      localStorage.setItem('sessionExpiresAt', String(expiresAt));
+  const renew = useCallback(async () => {
+    if (renewing) return;
+
+    setRenewing(true);
+    const renewed = await refreshSession();
+
+    if (!renewed) {
+      clearSession();
+      navigate('/login?expired=1');
+      return;
     }
 
-    const interval = setInterval(() => {
-      const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+    setSecondsLeft(getSecondsRemaining());
+    setRenewing(false);
+  }, [navigate, renewing]);
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const remaining = getSecondsRemaining();
       setSecondsLeft(remaining);
 
-      if (remaining <= 0) {
-        clearInterval(interval);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('sessionExpiresAt');
-        navigate('/login?expired=1');
+      // La sesión se renueva sola poco antes de caducar, para no interrumpir
+      // al operador a mitad de la jornada. Si ya venció, se intenta una
+      // última renovación antes de cerrar la sesión.
+      if (remaining <= 0 || shouldRefreshSession()) {
+        const renewed = await refreshSession();
+
+        if (renewed) {
+          setSecondsLeft(getSecondsRemaining());
+        } else {
+          clearInterval(interval);
+          clearSession();
+          navigate('/login?expired=1');
+        }
       }
     }, 1000);
 
@@ -44,7 +62,7 @@ export default function SessionTimer() {
 
   return (
     <div
-      title="Tiempo restante de sesión activa (límite de 5 minutos)"
+      title="Tiempo restante de sesión activa. Se renueva automáticamente al agotarse."
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -60,22 +78,37 @@ export default function SessionTimer() {
         background: isDanger
           ? 'rgba(239, 68, 68, 0.15)'
           : isWarning
-          ? 'rgba(245, 158, 11, 0.15)'
-          : 'var(--bg-surface-hover)',
+            ? 'rgba(245, 158, 11, 0.15)'
+            : 'var(--bg-surface-hover)',
         borderColor: isDanger
           ? 'rgba(239, 68, 68, 0.4)'
           : isWarning
-          ? 'rgba(245, 158, 11, 0.4)'
-          : 'var(--border-subtle)',
-        color: isDanger
-          ? '#ef4444'
-          : isWarning
-          ? '#f59e0b'
-          : 'var(--text-secondary)',
+            ? 'rgba(245, 158, 11, 0.4)'
+            : 'var(--border-subtle)',
+        color: isDanger ? '#ef4444' : isWarning ? '#f59e0b' : 'var(--text-secondary)',
       }}
     >
       <Timer size={14} className={isDanger ? 'animate-pulse' : ''} />
       <span>{formatted}</span>
+      {isWarning && (
+        <button
+          type="button"
+          onClick={renew}
+          disabled={renewing}
+          title="Renovar la sesión ahora"
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'inherit',
+            cursor: renewing ? 'wait' : 'pointer',
+            fontSize: '0.7rem',
+            padding: 0,
+            textDecoration: 'underline',
+          }}
+        >
+          {renewing ? '...' : 'renovar'}
+        </button>
+      )}
     </div>
   );
 }

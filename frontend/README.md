@@ -1,16 +1,50 @@
-# React + Vite
+# El Trébol — Frontend (SPA React)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Interfaz del sistema de apuestas de taquilla. La documentación completa del proyecto está en el [README raíz](../README.md).
 
-Currently, two official plugins are available:
+## Puesta en marcha
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+La SPA queda en `http://localhost:5173` y consume la API en `http://127.0.0.1:8000/api` (configurable con `VITE_API_URL`).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Scripts
 
-## Expanding the Oxlint configuration
+```bash
+npm run dev       # Servidor de desarrollo
+npm run build     # Compilación de producción en dist/
+npm run preview   # Previsualizar la compilación
+npm run lint      # oxlint
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Estructura
+
+```
+src/
+├── api/client.js      Cliente Axios: token, renovación de sesión, manejo de 401
+├── components/        ThemeToggle, SessionTimer, ErrorBoundary
+├── contexts/          ThemeContext (claro/oscuro)
+├── layouts/           Un layout por rol: Admin, Supervisor, Taquilla
+├── pages/             Una página por módulo
+├── styles/            admin.css
+└── utils/             session, tickets, parley, animalitos, roles, errors
+```
+
+## Sesión
+
+`src/utils/session.js` centraliza el manejo de la sesión:
+
+- El plazo real se lee del claim `exp` del token: el cliente no lo inventa.
+- `refreshSession()` renueva el token vía `POST /api/auth/refresh` y reutiliza la misma promesa si hay varias llamadas simultáneas.
+- `src/api/client.js` renueva automáticamente antes de que caduque y reintenta una vez la petición que falló con 401.
+
+## Rutas por rol
+
+| Ruta | Rol |
+|---|---|
+| `/dashboard`, `/agencies`, `/supervisors`, `/lotteries`, `/races`, `/parley`, `/limits`, `/analiticas` | administrador |
+| `/supervisor`, `/supervisor/taquillas`, `/supervisor/historial`, `/supervisor/analiticas` | supervisor |
+| `/taquilla`, `/taquilla/nueva`, `/taquilla/tickets` | taquilla |

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Agencies from './pages/Agencies';
@@ -20,6 +21,7 @@ import AdminLayout from './layouts/AdminLayout';
 import SupervisorLayout from './layouts/SupervisorLayout';
 import TaquillaLayout from './layouts/TaquillaLayout';
 import { homePathForRole } from './utils/roles';
+import { getSessionExpiry, refreshSession, clearSession } from './utils/session';
 import './App.css';
 
 function storedUser() {
@@ -34,18 +36,40 @@ function RoleRoute({ roles, children }) {
   const token = localStorage.getItem('token');
   const user = storedUser();
   const location = useLocation();
+  const [renewing, setRenewing] = useState(false);
+
+  const expiry = getSessionExpiry();
+  const expired = Boolean(token && expiry && Date.now() > expiry);
+
+  // La sesión vencida no expulsa al usuario de inmediato: se intenta
+  // renovar el token una vez. Si no se puede, se cierra la sesión.
+  useEffect(() => {
+    if (!expired) return;
+
+    let active = true;
+
+    setRenewing(true);
+
+    refreshSession().then((renewed) => {
+      if (!renewed) {
+        clearSession();
+      }
+      if (active) {
+        setRenewing(false);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [expired]);
 
   if (!token) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  // Comprobar expiración estricta de 5 minutos de sesión
-  const expiresAt = Number(localStorage.getItem('sessionExpiresAt') || 0);
-  if (expiresAt && Date.now() > expiresAt) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('sessionExpiresAt');
-    return <Navigate to="/login?expired=1" replace />;
+  if (expired && renewing) {
+    return <p className="empty">Renovando la sesión...</p>;
   }
 
   if (!roles.includes(user.role)) {

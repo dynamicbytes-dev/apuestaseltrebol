@@ -15,11 +15,38 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        $ttl = 5; // Duración máxima de la sesión: 5 minutos
+        $ttl = $this->sessionTtlMinutes();
         $token = auth('api')->setTTL($ttl)->attempt($credentials);
 
         if (! $token) {
             return response()->json(['message' => 'Credenciales inválidas.'], 401);
+        }
+
+        /** @var User $user */
+        $user = auth('api')->user();
+
+        return response()->json([
+            'token' => $token,
+            'token_type' => 'bearer',
+            'expires_in' => $ttl * 60,
+            'user' => $this->formatUser($user),
+        ]);
+    }
+
+    /**
+     * Renueva el token de la sesión activa.
+     *
+     * El token debe estar todavía vigente: el middleware de autenticación
+     * rechaza los expirados antes de llegar aquí. El frontend renueva de
+     * forma automática poco antes de que caduque.
+     */
+    public function refresh(): JsonResponse
+    {
+        $ttl = $this->sessionTtlMinutes();
+        $token = auth('api')->setTTL($ttl)->refresh();
+
+        if (! $token) {
+            return response()->json(['message' => 'La sesión no se puede renovar.'], 401);
         }
 
         /** @var User $user */
@@ -46,6 +73,16 @@ class AuthController extends Controller
         auth('api')->logout();
 
         return response()->json(['message' => 'Sesión cerrada correctamente.']);
+    }
+
+    /**
+     * Duración de la sesión en minutos, tomada de JWT_TTL.
+     */
+    private function sessionTtlMinutes(): int
+    {
+        $ttl = (int) config('jwt.ttl', 60);
+
+        return $ttl > 0 ? $ttl : 60;
     }
 
     private function formatUser(User $user): array

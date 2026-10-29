@@ -26,10 +26,17 @@ export default function Login() {
       const response = await api.post('/auth/login', { email, password });
       const { token, user, expires_in } = response.data;
 
-      const durationMs = (expires_in ? Number(expires_in) : 5 * 60) * 1000;
+      // El plazo lo define el servidor: el cliente no lo inventa.
+      const durationMs = (Number(expires_in) || 0) * 1000;
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('sessionExpiresAt', String(Date.now() + durationMs));
+
+      if (durationMs > 0) {
+        localStorage.setItem('sessionExpiresAt', String(Date.now() + durationMs));
+      } else {
+        localStorage.removeItem('sessionExpiresAt');
+      }
 
       navigate(homePathForRole(user.role));
     } catch (err) {
