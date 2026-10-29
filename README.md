@@ -120,16 +120,19 @@ El historial de movimientos (`ticket_movements`) registra cada emisión, pago, a
 
 ## Resultados de animalitos
 
-Los resultados se registran en `animalito_sorteos`. El comando programado `fetch:animalitos` (cada 10 minutos, entre las 09:00 y las 19:00) consulta la fuente de cada lotería:
+Los resultados se registran en `animalito_sorteos`. El comando programado `fetch:animalitos` (cada 10 minutos, entre las 09:00 y las 19:00) consulta la fuente de cada lotería.
+
+La tarea se define en `backend/routes/console.php`. En Laravel 11 y 12 el planificador ya no lee `app/Console/Kernel.php`, así que una tarea definida ahí **nunca se ejecuta**.
 
 ```bash
 # Instalar el planificador (una sola vez)
-* * * * * cd /ruta/al/backend && php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /ruta/al/backend && /ruta/al/php artisan schedule:run >> /dev/null 2>&1
 ```
 
 - Si la lotería **no tiene** `source_url` configurada, el comando no consulta ninguna fuente y el resultado queda pendiente de ingreso manual por el administrador. No se crea ninguna fila.
 - El número se conserva como texto: `"00"` y `"0"` son números distintos.
 - La idempotencia está acotada por fecha: un mismo número puede salir en sorteos de días diferentes.
+- El panel de Loterías avisa qué loterías siguen **sin resultado** para la fecha consultada: sin un resultado oficial no se pueden cobrar los tickets de esas loterías.
 
 El administrador registra los resultados manualmente desde el panel de Loterías.
 
@@ -224,11 +227,43 @@ php artisan test
 
 La suite corre contra SQLite en memoria, no toca la base de datos de desarrollo y cubre la liquidación de parley, la selección del sorteo de animalitos, el comando de sorteos, el historial de movimientos, las analíticas y la gestión de sesión.
 
+Las variables que la suite necesita (`APP_KEY`, `JWT_SECRET`, `SPORTS_API_KEY`) están fijadas en `backend/phpunit.xml`, así que **no hace falta un `.env`** para ejecutarla.
+
 ```bash
 cd frontend
 npm run lint
 npm run build
 ```
+
+## Flujo de trabajo
+
+Ramas y ciclo de entrega:
+
+| Rama | Uso |
+|---|---|
+| `main` | Producción. Solo recibe merges de `develop` mediante PR |
+| `develop` | Integración. Todo el trabajo diario entra aquí |
+| `feature/*` | Rama de trabajo, creada desde `develop` |
+
+```bash
+# Trabajo nuevo
+git checkout develop && git pull
+git checkout -b feature/mi-cambio
+# ... trabajar ...
+git commit -am "feat: ..."
+git push -u origin feature/mi-cambio
+# Abrir PR hacia develop
+
+# Release
+# Abrir PR de develop hacia main, esperar la CI y fusionar
+```
+
+La CI (`.github/workflows/ci.yml`) corre en cada push y en cada PR contra `main` y `develop`: tests de PHPUnit y verificación de formato con Pint en el backend, lint y compilación en el frontend.
+
+**Protección de ramas recomendada** (en *Settings → Branches* de GitHub):
+
+- `main`: requiere PR, no permite push directo, exige que la CI pase.
+- `develop`: requiere PR, no permite push directo, exige que la CI pase.
 
 ## Estado actual
 
@@ -245,3 +280,4 @@ npm run build
 - [x] Flujo de revisión manual para jugadas que no se pueden liquidar solas
 - [x] Analíticas por agencia e historial de movimientos
 - [x] Sesión configurable con renovación automática
+- [x] Planificador operativo (sincronización de resultados de loterías)
