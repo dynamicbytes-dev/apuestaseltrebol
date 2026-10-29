@@ -1,0 +1,14 @@
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editores
+.idea/
+.vscode/
+.zed/
+
+# Entornos locales
+*.local
+.env
+.env.backup
+.env.production

@@ -1,0 +1,127 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+class TaquillaController extends Controller
+{
+    public function index(): JsonResponse
+    {
+        /** @var User $supervisor */
+        $supervisor = auth('api')->user();
+
+        $taquillas = User::where('role', User::ROLE_TICKETER)
+            ->where('supervisor_id', $supervisor->id)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $taquilla) => $this->formatTaquilla($taquilla));
+
+        return response()->json(['data' => $taquillas]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        /** @var User $supervisor */
+        $supervisor = auth('api')->user();
+
+        if ($supervisor->agency_id === null) {
+            return response()->json([
+                'message' => 'Tu usuario no tiene una agencia asignada. Contacta al administrador.',
+            ], 422);
+        }
+
+        $data = $this->validateTaquilla($request);
+
+        $taquilla = User::create([
+            ...$data,
+            'role' => User::ROLE_TICKETER,
+            'agency_id' => $supervisor->agency_id,
+            'supervisor_id' => $supervisor->id,
+        ]);
+
+        return response()->json([
+            'data' => $this->formatTaquilla($taquilla),
+        ], 201);
+    }
+
+    public function update(Request $request, User $taquilla): JsonResponse
+    {
+        $this->ensureOwnedBySupervisor($taquilla);
+
+        $data = $this->validateTaquilla($request, $taquilla);
+
+        if (empty($data['password'])) {
+            unset($data['password']);
+        }
+
+        $taquilla->update($data);
+
+        return response()->json([
+            'data' => $this->formatTaquilla($taquilla),
+        ]);
+    }
+
+    public function destroy(User $taquilla): JsonResponse
+    {
+        $this->ensureOwnedBySupervisor($taquilla);
+
+        if ($taquilla->tickets()->exists()) {
+            return response()->json([
+                'message' => 'No se puede eliminar una taquilla con tickets registrados.',
+            ], 422);
+        }
+
+        $taquilla->delete();
+
+        return response()->json(['message' => 'Taquilla eliminada correctamente.']);
+    }
+
+    private function ensureOwnedBySupervisor(User $taquilla): void
+    {
+        /** @var User $supervisor */
+        $supervisor = auth('api')->user();
+
+        abort_unless(
+            $taquilla->role === User::ROLE_TICKETER
+            && $taquilla->supervisor_id === $supervisor->id,
+            404
+        );
+    }
+
+    private function validateTaquilla(Request $request, ?User $taquilla = null): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($taquilla?->id),
+            ],
+            'password' => [$taquilla ? 'nullable' : 'required', 'string', 'min:6'],
+        ], [
+            'name.required' => 'El nombre de la taquilla es obligatorio.',
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.email' => 'El correo electrónico no es válido.',
+            'email.unique' => 'Ya existe un usuario con ese correo electrónico.',
+            'password.required' => 'La contraseña es obligatoria.',
+            'password.min' => 'La contraseña debe tener al menos 6 caracteres.',
+        ]);
+    }
+
+    private function formatTaquilla(User $taquilla): array
+    {
+        return [
+            'id' => $taquilla->id,
+            'name' => $taquilla->name,
+            'email' => $taquilla->email,
+            'agency_id' => $taquilla->agency_id,
+            'supervisor_id' => $taquilla->supervisor_id,
+            'created_at' => $taquilla->created_at?->toISOString(),
+        ];
+    }
+}
