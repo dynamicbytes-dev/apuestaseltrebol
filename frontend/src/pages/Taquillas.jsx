@@ -4,7 +4,7 @@ import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
 import { formatAmount } from '../utils/tickets';
 
-const emptyForm = { name: '', email: '', password: '' };
+const emptyForm = { name: '', email: '', password: '', commission_percentage: '13' };
 
 export default function Taquillas() {
   const [taquillas, setTaquillas] = useState([]);
@@ -38,8 +38,7 @@ export default function Taquillas() {
     loadTaquillas();
   }, [loadTaquillas]);
 
-  // El porciento es el mismo para todas las taquillas.
-  const sharePercentage = taquillas[0]?.sales?.share_percentage ?? 13;
+  // El porcentaje es propio de cada taquilla.
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -51,6 +50,10 @@ export default function Taquillas() {
       name: form.name,
       email: form.email,
     };
+
+    if (form.commission_percentage !== '' && form.commission_percentage !== null) {
+      payload.commission_percentage = Number(form.commission_percentage);
+    }
 
     if (form.password) {
       payload.password = form.password;
@@ -77,7 +80,12 @@ export default function Taquillas() {
 
   const handleEdit = (taquilla) => {
     setEditingId(taquilla.id);
-    setForm({ name: taquilla.name, email: taquilla.email, password: '' });
+    setForm({
+      name: taquilla.name,
+      email: taquilla.email,
+      password: '',
+      commission_percentage: String(taquilla.commission_percentage ?? ''),
+    });
     setError(null);
     setSuccess(null);
   };
@@ -169,6 +177,29 @@ export default function Taquillas() {
             />
           </div>
 
+          <div className="form-field">
+            <label htmlFor="taquilla-comision">
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Percent size={14} color="#34d399" />
+                <strong>Porcentaje de comisión</strong>
+              </span>
+            </label>
+            <input
+              id="taquilla-comision"
+              className="input"
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              value={form.commission_percentage}
+              onChange={(event) => setForm({ ...form, commission_percentage: event.target.value })}
+              placeholder="13.00"
+            />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+              Porcentaje que te corresponde sobre las ventas de esta taquilla.
+            </span>
+          </div>
+
           <button className="btn btn-primary" type="submit" disabled={saving}>
             {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Registrar'}
           </button>
@@ -181,7 +212,8 @@ export default function Taquillas() {
         </form>
 
         <p className="empty" style={{ paddingTop: '0.75rem' }}>
-          La taquilla queda asignada automáticamente a tu agencia y a tu usuario.
+          La taquilla queda asignada automáticamente a tu agencia y a tu usuario. El
+          porcentaje de comisión es propio de cada taquilla y se aplica sobre sus ventas.
         </p>
       </section>
 
@@ -251,8 +283,8 @@ export default function Taquillas() {
               >
                 <Percent size={14} color="#34d399" />
                 <span>
-                  Tu comisión de cada taquilla:{' '}
-                  <strong style={{ color: '#34d399' }}>{sharePercentage}%</strong> de sus ventas
+                  Cada taquilla tiene su propio porcentaje de comisión, que se aplica
+                  sobre sus ventas.
                 </span>
               </div>
             </div>
@@ -264,7 +296,7 @@ export default function Taquillas() {
                 <th>Email</th>
                 <th>Registrada</th>
                 <th>Ventas</th>
-                <th>Comisión ({sharePercentage}%)</th>
+                <th>Comisión</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -286,6 +318,9 @@ export default function Taquillas() {
                   </td>
                   <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399', fontWeight: 700 }}>
                     {formatAmount(taquilla.sales?.share_amount)}
+                    <span style={{ color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: '0.35rem' }}>
+                      ({Number(taquilla.sales?.share_percentage ?? 0).toFixed(2)}%)
+                    </span>
                   </td>
                   <td>
                     <div className="table-actions">
