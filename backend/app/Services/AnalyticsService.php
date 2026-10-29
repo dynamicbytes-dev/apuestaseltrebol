@@ -24,8 +24,6 @@ class AnalyticsService
 
         $base = $this->baseQuery($agencyId, $from, $to, $supervisorId);
 
-        $totals = $this->totals(clone $base);
-
         return [
             'scope' => [
                 'agency_id' => $agencyId,
@@ -35,31 +33,11 @@ class AnalyticsService
                 'from' => $from,
                 'to' => $to,
             ],
-            'totals' => $totals,
+            'totals' => $this->totals(clone $base),
             'by_type' => $this->byType(clone $base),
             'by_status' => $this->byStatus(clone $base),
             'daily' => $this->daily(clone $base),
             'settlement' => $this->bySettlement(clone $base),
-            'share' => $this->supervisorShare($totals),
-        ];
-    }
-
-    /**
-     * Porcentaje que le corresponde al supervisor sobre las ventas de sus
-     * taquillas.
-     *
-     * @param  array<string, mixed>  $totals
-     * @return array{percentage: float, base: float, amount: float}
-     */
-    private function supervisorShare(array $totals): array
-    {
-        $percentage = (float) config('business.supervisor_share', 0.13);
-        $base = round((float) ($totals['stake'] ?? 0), 2);
-
-        return [
-            'percentage' => $percentage * 100,
-            'base' => $base,
-            'amount' => round($base * $percentage, 2),
         ];
     }
 
@@ -225,8 +203,8 @@ class AnalyticsService
     /**
      * Ventas y porciento de cada taquilla.
      *
-     * El porciento del supervisor es por taquilla: cada una tiene su propio
-     * 13% sobre lo que vendio.
+     * El porciento es el propio de cada taquilla: lo fija el supervisor al
+     * registrarla.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -234,32 +212,38 @@ class AnalyticsService
     {
         [$from, $to] = $this->resolvePeriod($from, $to);
 
-        $percentage = (float) config('business.supervisor_share', 0.13);
+        $porDefecto = (float) config('business.supervisor_share', 0.13) * 100;
 
         $query = Ticket::query()
-            ->whereDate('created_at', '>=', $from)
-            ->whereDate('created_at', '<=', $to);
+            ->join('users as taquillas', 'taquillas.id', '=', 'tickets.taquilla_id')
+            ->whereDate('tickets.created_at', '>=', $from)
+            ->whereDate('tickets.created_at', '<=', $to);
 
         if ($supervisorId !== null) {
-            $query->where('supervisor_id', $supervisorId);
+            $query->where('tickets.supervisor_id', $supervisorId);
         }
 
         return $query
-            ->selectRaw('taquilla_id')
-            ->selectRaw('COUNT(*) as tickets')
-            ->selectRaw('COALESCE(SUM(stake), 0) as stake')
-            ->selectRaw('COALESCE(SUM(paid_amount), 0) as paid')
-            ->groupBy('taquilla_id')
+            ->selectRaw('tickets.taquilla_id as taquilla_id')
+            ->selectRaw('COALESCE(taquillas.commission_percentage, ?) as percentage', [$porDefecto])
+            ->selectRaw('COUNT(tickets.id) as tickets')
+            ->selectRaw('COALESCE(SUM(tickets.stake), 0) as stake')
+            ->selectRaw('COALESCE(SUM(tickets.paid_amount), 0) as paid')
+            ->groupBy('tickets.taquilla_id', 'taquillas.commission_percentage')
             ->get()
-            ->map(fn ($row) => [
-                'taquilla_id' => (int) $row->taquilla_id,
-                'tickets' => (int) $row->tickets,
-                'stake' => round((float) $row->stake, 2),
-                'paid' => round((float) $row->paid, 2),
-                'net' => round((float) $row->stake - (float) $row->paid, 2),
-                'share_percentage' => $percentage * 100,
-                'share_amount' => round((float) $row->stake * $percentage, 2),
-            ])
+            ->map(function ($row) use ($porDefecto) {
+                $porcentaje = (float) $row->percentage ?: $porDefecto;
+
+                return [
+                    'taquilla_id' => (int) $row->taquilla_id,
+                    'tickets' => (int) $row->tickets,
+                    'stake' => round((float) $row->stake, 2),
+                    'paid' => round((float) $row->paid, 2),
+                    'net' => round((float) $row->stake - (float) $row->paid, 2),
+                    'share_percentage' => $porcentaje,
+                    'share_amount' => round((float) $row->stake * $porcentaje / 100, 2),
+                ];
+            })
             ->keyBy('taquilla_id')
             ->all();
     }

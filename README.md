@@ -194,14 +194,13 @@ Ambos aceptan `?from=AAAA-MM-DD&to=AAAA-MM-DD` (por defecto, los últimos 30 dí
 
 **Comisiones**, calculadas sobre las ventas (el total apostado):
 
-| Concepto | Base | Porcentaje | Configuración |
+| Concepto | Base | Porcentaje | Dónde |
 |---|---|---|---|
-| Taquilla (supervisor) | Las ventas de **cada taquilla**, una por una | **13%** | `SUPERVISOR_SHARE` (por defecto `0.13`) |
-| Agencia | La suma de las ventas de **todas** sus taquillas | **1.5%** | `AGENCY_SHARE` (por defecto `0.015`) |
+| **Taquilla** | Las ventas de **cada taquilla**, una por una | **el que tenga asignado** | Gestión de Taquillas (detalle) |
+| Agencia | La suma de las ventas de **todas** sus taquillas | **1.5%** | Agencias (admin) |
 
-- El módulo **Gestión de Taquillas** del supervisor muestra, por taquilla, sus ventas del periodo y el **13%** que corresponde. Es el detalle: cada taquilla se liquida por separado.
-- El módulo **Analíticas** del supervisor muestra la **suma** de esas comisiones, con un selector de fechas.
-- El módulo **Agencias** del administrador muestra, por agencia, las ventas del periodo y el **1.5%** que corresponde.
+- El **porcentaje de comisión es propio de cada taquilla**: se fija en el registro de la taquilla (módulo *Gestión de Taquillas*) y se puede editar después. El módulo **Agencias** del administrador muestra, por agencia, las ventas del periodo y el **1.5%** que corresponde, con un selector de fechas.
+- `SUPERVISOR_SHARE` (por defecto `0.13`) es el valor por defecto para las taquillas nuevas; `AGENCY_SHARE` (por defecto `0.015`) es el de las agencias.
 
 El historial de movimientos (`ticket_movements`) registra cada emisión, pago, anulación y cambio de liquidación con su autor, estado origen/destino, monto y nota.
 
@@ -403,5 +402,5 @@ La CI (`.github/workflows/ci.yml`) corre en cada push y en cada PR contra `main`
 - [x] Sesión configurable con renovación automática
 - [x] Planificador operativo (sincronización de resultados de loterías)
 - [x] Zona horaria de la operación en hora de Caracas
-- [x] KPI de comisiones por agencia (1.5%) y por taquilla (13%)
+- [x] KPI de comisiones por agencia (1.5%) y porcentaje propio por taquilla
 - [x] Un solo estado por ticket, que se actualiza solo al registrar resultados

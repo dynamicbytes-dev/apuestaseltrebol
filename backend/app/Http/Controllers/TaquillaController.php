@@ -63,6 +63,8 @@ class TaquillaController extends Controller
             'role' => User::ROLE_TICKETER,
             'agency_id' => $supervisor->agency_id,
             'supervisor_id' => $supervisor->id,
+            'commission_percentage' => $data['commission_percentage']
+                ?? $this->defaultCommissionPercentage(),
         ]);
 
         return response()->json([
@@ -125,6 +127,7 @@ class TaquillaController extends Controller
                 Rule::unique('users', 'email')->ignore($taquilla?->id),
             ],
             'password' => [$taquilla ? 'nullable' : 'required', 'string', 'min:6'],
+            'commission_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ], [
             'name.required' => 'El nombre de la taquilla es obligatorio.',
             'email.required' => 'El correo electrónico es obligatorio.',
@@ -132,17 +135,30 @@ class TaquillaController extends Controller
             'email.unique' => 'Ya existe un usuario con ese correo electrónico.',
             'password.required' => 'La contraseña es obligatoria.',
             'password.min' => 'La contraseña debe tener al menos 6 caracteres.',
+            'commission_percentage.numeric' => 'El porcentaje de comisión debe ser un número.',
+            'commission_percentage.min' => 'El porcentaje de comisión no puede ser negativo.',
+            'commission_percentage.max' => 'El porcentaje de comisión no puede superar 100.',
         ]);
+    }
+
+    /**
+     * Porcentaje por defecto para las taquillas nuevas.
+     */
+    private function defaultCommissionPercentage(): float
+    {
+        return round((float) config('business.supervisor_share', 0.13) * 100, 2);
     }
 
     private function formatTaquilla(User $taquilla, array $ventas = []): array
     {
+        $porcentaje = (float) ($taquilla->commission_percentage ?? $this->defaultCommissionPercentage());
+
         $datos = $ventas[$taquilla->id] ?? [
             'tickets' => 0,
             'stake' => 0.0,
             'paid' => 0.0,
             'net' => 0.0,
-            'share_percentage' => (float) config('business.supervisor_share', 0.13) * 100,
+            'share_percentage' => $porcentaje,
             'share_amount' => 0.0,
         ];
 
@@ -152,6 +168,7 @@ class TaquillaController extends Controller
             'email' => $taquilla->email,
             'agency_id' => $taquilla->agency_id,
             'supervisor_id' => $taquilla->supervisor_id,
+            'commission_percentage' => (float) ($taquilla->commission_percentage ?? $this->defaultCommissionPercentage()),
             'created_at' => $taquilla->created_at?->toISOString(),
             'sales' => $datos,
         ];
