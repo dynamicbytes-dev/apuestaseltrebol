@@ -38,6 +38,7 @@ export function formatTime(value) {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    timeZone: VENEZUELA_TIMEZONE,
   });
 }
 
@@ -47,6 +48,7 @@ export function formatDateTime(value) {
   return new Date(value).toLocaleString('es-VE', {
     dateStyle: 'short',
     timeStyle: 'short',
+    timeZone: VENEZUELA_TIMEZONE,
   });
 }
 

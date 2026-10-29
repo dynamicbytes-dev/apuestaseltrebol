@@ -26,6 +26,7 @@ import {
   canPayTicket,
   formatAmount,
   formatTicketDate,
+  formatDrawTime,
   canCancelTicket,
   getCancelMinutesRemaining,
 } from '../utils/tickets';
@@ -42,6 +43,8 @@ export default function TaquillaTickets() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [movements, setMovements] = useState([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
+  const [settlement, setSettlement] = useState(null);
+  const [settlementLoading, setSettlementLoading] = useState(false);
   const [processingId, setProcessingId] = useState(null);
 
   const loadMovements = useCallback(async (ticketId) => {
@@ -56,10 +59,26 @@ export default function TaquillaTickets() {
     }
   }, []);
 
+  // Vista previa de la liquidación: dice si el ticket se puede pagar y por
+  // cuánto, sin cobrar nada.
+  const loadSettlement = useCallback(async (ticketId) => {
+    setSettlementLoading(true);
+    try {
+      const res = await api.get(`/taquilla/tickets/${ticketId}/settlement`);
+      setSettlement(res.data.data);
+    } catch {
+      setSettlement(null);
+    } finally {
+      setSettlementLoading(false);
+    }
+  }, []);
+
   const openDetail = (ticket) => {
     setSelectedTicket(ticket);
     setMovements([]);
+    setSettlement(null);
     loadMovements(ticket.id);
+    loadSettlement(ticket.id);
   };
 
   const loadTickets = useCallback(async () => {
@@ -102,7 +121,7 @@ export default function TaquillaTickets() {
       return;
     }
 
-    const amount = Number(ticket.potential_payout);
+    const amount = Number(settlement?.payable ?? ticket.potential_payout);
     if (!window.confirm(`¿Confirmar pago del ticket ${ticket.code} por ${formatAmount(amount)}?`)) {
       return;
     }
@@ -118,6 +137,7 @@ export default function TaquillaTickets() {
       setTickets((prev) => prev.map((t) => (t.id === ticket.id ? updated : t)));
       if (selectedTicket?.id === ticket.id) {
         setSelectedTicket(updated);
+        loadSettlement(ticket.id);
       }
     } catch (err) {
       setError(getErrorMessage(err));
@@ -500,12 +520,19 @@ export default function TaquillaTickets() {
                 </strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Estado:</span>
                 <span className={ticketStatusClass(selectedTicket.status)}>
                   {TICKET_STATUS_LABELS[selectedTicket.status] ?? selectedTicket.status}
                 </span>
               </div>
+
+              {selectedTicket.sorteo_at && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Sorteo:</span>
+                  <strong>{formatDrawTime(selectedTicket.sorteo_at)}</strong>
+                </div>
+              )}
 
               {selectedTicket.type === 'parley' && selectedTicket.settlement_status && (
                 <div
@@ -588,12 +615,80 @@ export default function TaquillaTickets() {
                         </strong>
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                        Mercado: <strong style={{ color: 'var(--text-primary)' }}>{sel.market || 'Ganador'}</strong>
+                        {sel.amount !== null && sel.amount !== undefined ? (
+                          <>
+                            Monto: <strong style={{ color: 'var(--text-primary)' }}>{formatAmount(sel.amount)}</strong>
+                          </>
+                        ) : (
+                          <>Mercado: <strong style={{ color: 'var(--text-primary)' }}>{sel.market || 'Ganador'}</strong></>
+                        )}
                       </div>
                     </div>
                   );
                 })}
               </div>
+
+              {/* Resultado de la liquidación */}
+              {settlementLoading ? (
+                <p className="empty" style={{ margin: 0 }}>Validando resultado oficial...</p>
+              ) : settlement ? (
+                <div
+                  style={{
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-xs)',
+                    padding: '0.6rem 0.7rem',
+                    marginBottom: '0.75rem',
+                    background: 'var(--bg-surface-hover)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Estado de la jugada:</span>
+                    <span className={settlementStatusClass(settlement.status)}>
+                      {settlementStatusLabel(settlement.status)}
+                    </span>
+                  </div>
+
+                  {settlement.legs?.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '0.45rem' }}>
+                      {settlement.legs.map((leg) => (
+                        <div
+                          key={leg.selection_id}
+                          style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}
+                        >
+                          <span style={{ color: leg.status === 'won' ? '#34d399' : 'var(--text-tertiary)' }}>
+                            {leg.status === 'won' ? '✓' : '✕'} {leg.label}
+                          </span>
+                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                            {formatAmount(leg.amount)}
+                            {leg.payout > 0 ? ` → ${formatAmount(leg.payout)}` : ''}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      borderTop: '1px dashed var(--border-subtle)',
+                      paddingTop: '0.4rem',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-secondary)' }}>Monto a pagar:</span>
+                    <strong style={{ color: '#34d399', fontFamily: 'var(--font-mono)' }}>
+                      {formatAmount(settlement.payable)}
+                    </strong>
+                  </div>
+
+                  {settlement.note && (
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
+                      {settlement.note}
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
               {/* Totales */}
               <div style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem' }}>
@@ -669,7 +764,7 @@ export default function TaquillaTickets() {
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 {selectedTicket.status === 'pending' && (
                   <>
-                    {canPayTicket(selectedTicket) ? (
+                    {settlement?.status === 'won' || (!settlement && canPayTicket(selectedTicket)) ? (
                       <button
                         type="button"
                         className="btn btn-primary btn-sm"
@@ -691,9 +786,11 @@ export default function TaquillaTickets() {
                           border: '1px solid var(--border-subtle)',
                         }}
                       >
-                        {selectedTicket.settlement_status === 'lost'
+                        {settlement?.status === 'lost'
                           ? 'No se puede pagar: el ticket no es ganador'
-                          : 'No se puede pagar: requiere validación del supervisor'}
+                          : settlement?.status === 'review'
+                            ? 'No se puede pagar: requiere validación del supervisor'
+                            : 'No se puede pagar: aún no hay resultado oficial'}
                       </span>
                     )}
                     {canCancelTicket(selectedTicket) ? (

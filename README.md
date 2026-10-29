@@ -54,6 +54,7 @@ Abrir `http://localhost:5173` e iniciar sesión con el usuario administrador.
 | Variable | Descripción |
 |---|---|
 | `DB_*` | Conexión a PostgreSQL (`pgsql`, `127.0.0.1:5432`, base `eltrebol`) |
+| `APP_TIMEZONE` | Zona horaria de la operación. Por defecto `America/Caracas`: los horarios de sorteo y las fechas de los tickets se registran en hora local |
 | `JWT_SECRET` | Secreto de firma de los tokens (`php artisan jwt:secret`) |
 | `JWT_TTL` | Duración de la sesión **en minutos**. El valor por defecto es 60 |
 | `SPORTS_API_KEY` | Clave de API-SPORTS. Nunca se expone al frontend |
@@ -80,18 +81,18 @@ El aislamiento se aplica siempre por `agency_id` / `supervisor_id` / `taquilla_i
 ## Ciclo de vida de un ticket
 
 ```
-Emisión (taquilla)  →  pendiente  →  [validación de ganador]  →  pagado
-                                        │
-                                        ├─ hipismo:    ganador oficial de la carrera
-                                        ├─ animalitos: sorteo resuelto posterior a la emisión
-                                        └─ parley:     resultado oficial de cada pierna
-                                              │
-                                              └─ si el mercado no se puede liquidar → revisión del supervisor
+Emisión (taquilla)  →  pendiente  →  liquidación contra el resultado oficial  →  pagado
+                                          │
+                                          ├─ animalitos: el sorteo que declara la apuesta
+                                          ├─ hipismo:    ganador oficial de la carrera
+                                          └─ parley:     resultado oficial de cada pierna
+                                                │
+                                                └─ si el mercado no se puede liquidar → revisión del supervisor
 ```
 
-- **Emisión**: la taquilla elige lotería/caballo/parley y el monto. El backend valida los topes de la agencia (`max_bet_amount`, `max_ticket_payout`), calcula la cuota y el premio potencial, y guarda el ticket y sus selecciones en una transacción.
-- **Validación**: antes de pagar, el backend comprueba el resultado oficial. **Ninguna jugada se paga sin verificar.**
-- **Pago**: solo se permite si la liquidación resulta ganadora.
+- **Emisión**: la taquilla elige modalidad y monto. En animalitos elige lotería, sorteo y uno o varios animalitos con su monto. El backend valida los topes de la agencia (`max_bet_amount`, `max_ticket_payout`), calcula la cuota y el premio potencial, y guarda el ticket y sus selecciones en una transacción.
+- **Liquidación**: antes de pagar, el backend comprueba el resultado oficial. **Ninguna jugada se paga sin verificar.**
+- **Pago**: solo se permite si la liquidación resulta ganadora, y nunca por más de lo que corresponde.
 - **Anulación**: únicamente dentro de los **5 minutos** posteriores a la emisión.
 
 ### Liquidación automática (parley)
@@ -108,6 +109,31 @@ El motor de liquidación (`app/Services/SportsSettlementService.php`) consulta e
 **Todo lo demás va a revisión manual.** Un mercado no reconocido, un evento sin resultado oficial, un partido aplazado o cancelado, o un evento que el proveedor ya no devuelve dejan el ticket en estado `review`: nunca se paga de forma automática. Es preferible escalar a revisión antes que pagar un ticket perdedor.
 
 El supervisor resuelve los casos en revisión desde `POST /api/supervisor/tickets/{ticket}/review`. Su decisión tiene prioridad y el motor automático no la sobrescribe.
+
+### Apuestas de animalitos
+
+Una apuesta de animalitos declara **a qué sorteo pertenece** y puede llevar **varios animalitos, cada uno con su monto**:
+
+```
+Lotería: Lotto Activo
+Sorteo:  29/10 19:00
+Jugadas: N° 5 - León    → 50.00
+         N° 12 - Caballo → 30.00
+Total:   80.00          Premio potencial: 2.400,00
+```
+
+- Los **horarios de sorteo** se configuran por lotería (panel de Loterías → detalle). Son las únicas horas que la taquilla puede elegir. Sin horarios, la lotería no admite apuestas.
+- El **total es la suma de los montos**, y lo calcula el backend: el cliente nunca fija el monto.
+- Al cobrar, solo pagan **las piernas ganadoras**: si salió el N° 5, se pagan `50 × multiplicador` y el N° 12 no paga nada. Si no gana ninguna, el ticket no se paga.
+- La validación busca **exactamente el sorteo que declara el ticket**. Una apuesta de las 19:00 nunca se liquidará contra el resultado del sorteo de las 09:00.
+- No se puede apostar a un sorteo que ya pasó ni a uno que ya tiene resultado oficial registrado.
+
+### Hipismo y parley
+
+Se mantienen como estaban: una sola selección por ticket, todo o nada.
+
+- **Hipismo**: se compara el ejemplar jugado contra el ganador oficial de la carrera. Si la carrera no está finalizada, no se puede cobrar.
+- **Parley**: cada pierna se liquida contra el resultado oficial del evento (ganador 1X2, doble oportunidad, total de goles y ambos equipos marcan). Todo lo demás pasa a revisión manual del supervisor, que decide con `POST /api/supervisor/tickets/{ticket}/review`.
 
 ## Analíticas e historial
 
@@ -214,6 +240,7 @@ La sesión usa tokens JWT. La duración se toma de `JWT_TTL` (en minutos, por de
 | `GET` | `/dashboard` | Panel de la taquilla |
 | `GET` | `/catalog` | Catálogo de loterías, carreras y topes |
 | `GET` `POST` | `/tickets` | Listar y emitir tickets |
+| `GET` | `/tickets/{ticket}/settlement` | Vista previa de la liquidación: si se puede pagar, por cuánto y qué piernas ganaron |
 | `POST` | `/tickets/{ticket}/pay` | Validar y pagar |
 | `POST` | `/tickets/{ticket}/cancel` | Anular (5 minutos) |
 | `GET` | `/tickets/{ticket}/movements` | Historial de movimientos |
@@ -225,7 +252,7 @@ cd backend
 php artisan test
 ```
 
-La suite corre contra SQLite en memoria, no toca la base de datos de desarrollo y cubre la liquidación de parley, la selección del sorteo de animalitos, el comando de sorteos, el historial de movimientos, las analíticas y la gestión de sesión.
+La suite corre contra SQLite en memoria, no toca la base de datos de desarrollo y cubre la liquidación de parley, la selección del sorteo de animalitos, la apuesta multi-animalito, el pago por pierna, el comando de sorteos, el historial de movimientos, las analíticas y la gestión de sesión.
 
 Las variables que la suite necesita (`APP_KEY`, `JWT_SECRET`, `SPORTS_API_KEY`) están fijadas en `backend/phpunit.xml`, así que **no hace falta un `.env`** para ejecutarla.
 
@@ -277,7 +304,10 @@ La CI (`.github/workflows/ci.yml`) corre en cada push y en cada PR contra `main`
 - [x] Panel del supervisor (registro de taquillas)
 - [x] Registro de apuestas y pagos
 - [x] Validación automática de ganadores en hipismo, animalitos y parley
+- [x] Apuesta de animalitos con varios animalitos y monto por cada uno
+- [x] Sorteo declarado por la apuesta y pago por pierna ganadora
 - [x] Flujo de revisión manual para jugadas que no se pueden liquidar solas
 - [x] Analíticas por agencia e historial de movimientos
 - [x] Sesión configurable con renovación automática
 - [x] Planificador operativo (sincronización de resultados de loterías)
+- [x] Zona horaria de la operación en hora de Caracas

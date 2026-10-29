@@ -8,10 +8,10 @@ use App\Models\LotteryAnimal;
 use App\Models\Race;
 use App\Models\Ticket;
 use App\Models\TicketMovement;
-use App\Models\TicketSelection;
 use App\Models\User;
-use App\Services\SportsSettlementService;
 use App\Services\TicketMovementService;
+use App\Services\TicketSettlementService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +21,7 @@ use Illuminate\Validation\ValidationException;
 class TicketController extends Controller
 {
     public function __construct(
-        private readonly SportsSettlementService $settlement,
+        private readonly TicketSettlementService $settlements,
         private readonly TicketMovementService $movements,
     ) {}
 
@@ -31,6 +31,17 @@ class TicketController extends Controller
         $taquilla = auth('api')->user();
         $agency = $taquilla->agency;
 
+        // Sorteos ya resueltos: el jugador no puede apostar a un sorteo
+        // cerrado.
+        $resolvedDraws = AnimalitoSorteo::where('is_resolved', true)
+            ->where('sorteo_at', '>=', now()->startOfDay())
+            ->where('sorteo_at', '<=', now()->addDays(2)->endOfDay())
+            ->get(['lottery_id', 'sorteo_at'])
+            ->map(fn ($sorteo) => [
+                'lottery_id' => $sorteo->lottery_id,
+                'sorteo_at' => $sorteo->sorteo_at->toIso8601String(),
+            ]);
+
         $lotteries = Lottery::where('is_active', true)
             ->with(['animals' => fn ($query) => $query->where('is_enabled', true)])
             ->orderBy('name')
@@ -39,6 +50,7 @@ class TicketController extends Controller
                 'id' => $lottery->id,
                 'name' => $lottery->name,
                 'payout_multiplier' => $lottery->payout_multiplier,
+                'draw_times' => $lottery->draw_times ?? [],
                 'animals' => $lottery->animals->map(fn (LotteryAnimal $animal) => [
                     'id' => $animal->id,
                     'number' => $animal->number,
@@ -74,6 +86,7 @@ class TicketController extends Controller
                 ] : null,
                 'lotteries' => $lotteries,
                 'races' => $races,
+                'resolved_draws' => $resolvedDraws,
             ],
         ]);
     }
@@ -126,29 +139,33 @@ class TicketController extends Controller
                 Ticket::TYPE_HIPISMO,
                 Ticket::TYPE_PARLEY,
             ])],
-            'stake' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
+            // En animalitos el monto sale de la suma de los amounts por
+            // animalito: lo calcula el backend, nunca el cliente.
+            'stake' => ['required_unless:type,animalitos', 'numeric', 'min:0.01', 'max:999999999.99'],
         ], [
             'type.required' => 'Debe indicar el tipo de apuesta.',
             'type.in' => 'El tipo de apuesta no es válido.',
             'stake.required' => 'Debe indicar el monto de la apuesta.',
+            'stake.required_unless' => 'Debe indicar el monto de la apuesta.',
             'stake.numeric' => 'El monto de la apuesta debe ser un número.',
             'stake.min' => 'El monto de la apuesta debe ser mayor que cero.',
         ]);
 
-        $stake = round((float) $base['stake'], 2);
         $agency = $taquilla->agency;
+
+        $prepared = match ($base['type']) {
+            Ticket::TYPE_ANIMALITOS => $this->prepareAnimalitos($request),
+            Ticket::TYPE_HIPISMO => $this->prepareHipismo($request, (float) $base['stake']),
+            Ticket::TYPE_PARLEY => $this->prepareParley($request, (float) $base['stake']),
+        };
+
+        $stake = round((float) ($prepared['stake'] ?? $base['stake']), 2);
 
         if ($agency?->max_bet_amount !== null && $stake > (float) $agency->max_bet_amount) {
             return $this->limitError(
                 'El monto máximo por apuesta de tu agencia es '.$this->money($agency->max_bet_amount).'.'
             );
         }
-
-        $prepared = match ($base['type']) {
-            Ticket::TYPE_ANIMALITOS => $this->prepareAnimalitos($request),
-            Ticket::TYPE_HIPISMO => $this->prepareHipismo($request),
-            Ticket::TYPE_PARLEY => $this->prepareParley($request),
-        };
 
         $potentialPayout = round($stake * $prepared['odds'], 2);
 
@@ -169,6 +186,7 @@ class TicketController extends Controller
                 'supervisor_id' => $taquilla->supervisor_id,
                 'taquilla_id' => $taquilla->id,
                 'type' => $base['type'],
+                'sorteo_at' => $prepared['sorteo_at'] ?? null,
                 'stake' => $stake,
                 'total_odds' => round($prepared['odds'], 4),
                 'potential_payout' => $potentialPayout,
@@ -198,6 +216,29 @@ class TicketController extends Controller
         ], 201);
     }
 
+    /**
+     * Vista previa de la liquidación: no cobra nada, solo dice si el ticket
+     * se puede pagar, por cuánto y qué animalitos ganaron.
+     */
+    public function settlement(Ticket $ticket): JsonResponse
+    {
+        $this->ensureOwnedByTaquilla($ticket);
+
+        $previousStatus = $ticket->settlement_status;
+        $settlement = $this->settlements->settle($ticket);
+        $this->recordSettlementChange($ticket, $previousStatus, $settlement);
+
+        return response()->json([
+            'data' => [
+                'status' => $settlement['status'],
+                'payable' => $settlement['payable'],
+                'legs' => $settlement['legs'],
+                'note' => $settlement['note'],
+                'potential_payout' => (float) $ticket->potential_payout,
+            ],
+        ]);
+    }
+
     public function pay(Request $request, Ticket $ticket): JsonResponse
     {
         $this->ensureOwnedByTaquilla($ticket);
@@ -217,93 +258,22 @@ class TicketController extends Controller
             'paid_amount.min' => 'El monto pagado debe ser mayor que cero.',
         ]);
 
-        if ((float) $data['paid_amount'] > (float) $ticket->potential_payout) {
+        // La liquidación contra el resultado oficial decide si se puede pagar.
+        $previousStatus = $ticket->settlement_status;
+        $settlement = $this->settlements->settle($ticket);
+        $this->recordSettlementChange($ticket, $previousStatus, $settlement);
+
+        if ($settlement['status'] !== Ticket::SETTLEMENT_WON) {
             return response()->json([
-                'message' => 'El monto pagado no puede superar la ganancia potencial del ticket ('
-                    .$this->money($ticket->potential_payout).').',
+                'message' => $this->settlementMessage($settlement),
             ], 422);
         }
 
-        // Validación automática de ganadores oficiales en Hipismo
-        if ($ticket->type === Ticket::TYPE_HIPISMO) {
-            foreach ($ticket->selections as $selection) {
-                if ($selection->race_id) {
-                    $race = Race::with('winner')->find($selection->race_id);
-
-                    if (! $race || $race->status !== Race::STATUS_FINISHED) {
-                        return response()->json([
-                            'message' => 'La carrera "'.($race?->name ?? 'Hipismo').'" aún no tiene resultados oficiales registrados.',
-                        ], 422);
-                    }
-
-                    if ((int) $race->winner_horse_id !== (int) $selection->horse_id) {
-                        $winnerName = $race->winner ? "N° {$race->winner->number} - {$race->winner->name}" : 'No asignado';
-
-                        return response()->json([
-                            'message' => "El ticket no es ganador. En la carrera \"{$race->name}\", el ejemplar ganador oficial fue {$winnerName}.",
-                        ], 422);
-                    }
-                }
-            }
-        }
-
-        // Validación automática de ganadores oficiales en Parley
-        if ($ticket->type === Ticket::TYPE_PARLEY) {
-            $settlement = $this->settleParley($ticket);
-
-            if ($settlement['status'] === Ticket::SETTLEMENT_LOST) {
-                return response()->json([
-                    'message' => 'El ticket no es ganador. '.$settlement['note'],
-                ], 422);
-            }
-
-            if ($settlement['status'] === Ticket::SETTLEMENT_PENDING) {
-                return response()->json([
-                    'message' => 'Aún no hay resultados oficiales para alguna de las jugadas del ticket. '.$settlement['note'],
-                ], 422);
-            }
-
-            if ($settlement['status'] === Ticket::SETTLEMENT_REVIEW) {
-                return response()->json([
-                    'message' => 'El ticket requiere validación del supervisor. '.$settlement['note'],
-                ], 422);
-            }
-        }
-
-        // Validación de ganadores oficiales en Animalitos
-        if ($ticket->type === Ticket::TYPE_ANIMALITOS) {
-            foreach ($ticket->selections as $selection) {
-                if ($selection->lottery_id) {
-                    $lottery = Lottery::find($selection->lottery_id);
-
-                    // El sorteo aplicable es el primero ya resuelto posterior a
-                    // la emisión del ticket: es el sorteo en el que realmente
-                    // participó el cliente. Los sorteos sin resolver se
-                    // descartan y los anteriores no sirven.
-                    $sorteo = AnimalitoSorteo::where('lottery_id', $selection->lottery_id)
-                        ->where('is_resolved', true)
-                        ->where('sorteo_at', '>=', $ticket->created_at)
-                        ->orderBy('sorteo_at')
-                        ->first();
-
-                    if (! $sorteo) {
-                        return response()->json([
-                            'message' => 'La lotería "'.($lottery?->name ?? 'Animalitos').'" aún no tiene resultados oficiales registrados por la administración para el sorteo posterior a la emisión del ticket.',
-                        ], 422);
-                    }
-
-                    $selectedAnimal = $selection->lotteryAnimal;
-                    $selectedNumber = (string) ($selectedAnimal?->number
-                        ?? $selection->metadata['number']
-                        ?? '');
-
-                    if ((string) $sorteo->number !== $selectedNumber) {
-                        return response()->json([
-                            'message' => "El ticket no es ganador. En el sorteo oficial de {$lottery->name} resultó ganador el N° {$sorteo->number} - {$sorteo->animal}.",
-                        ], 422);
-                    }
-                }
-            }
+        if ((float) $data['paid_amount'] > (float) $settlement['payable']) {
+            return response()->json([
+                'message' => 'El monto pagado no puede superar el premio a pagar ('
+                    .$this->money($settlement['payable']).').',
+            ], 422);
         }
 
         $ticket->update([
@@ -365,57 +335,40 @@ class TicketController extends Controller
     }
 
     /**
-     * Liquida un ticket de parley contra el resultado oficial.
+     * Registra el movimiento cuando la liquidación cambia de estado, para
+     * no duplicar la entrada en cada intento de cobro.
      *
-     * Una decisión manual del supervisor tiene prioridad: el motor automático
-     * no debe sobrescribir un caso que ya fue revisado a mano.
-     *
-     * @return array{status: string, note: string|null, legs: array<int, array<string, mixed>>}
+     * @param  array{status: string, note: string}  $settlement
      */
-    private function settleParley(Ticket $ticket): array
+    private function recordSettlementChange(Ticket $ticket, string $previousStatus, array $settlement): void
     {
-        if ($ticket->settlement_source === 'manual') {
-            return [
-                'status' => $ticket->settlement_status,
-                'note' => $ticket->settlement_note,
-                'legs' => [],
-            ];
+        if ($settlement['status'] === $previousStatus) {
+            return;
         }
 
-        $settlement = $this->settlement->settle($ticket->loadMissing('selections'));
-        $previousStatus = $ticket->settlement_status;
+        $this->movements->record(
+            $ticket,
+            $this->movementTypeForSettlement($settlement['status']),
+            auth('api')->user(),
+            fromStatus: $previousStatus,
+            toStatus: $settlement['status'],
+            notes: $settlement['note'],
+        );
+    }
 
-        foreach ($settlement['legs'] as $leg) {
-            $leg['selection']->update([
-                'settlement_status' => $leg['status'],
-                'settlement_note' => $leg['note'],
-                'settled_at' => in_array($leg['status'], [
-                    TicketSelection::SETTLEMENT_WON,
-                    TicketSelection::SETTLEMENT_LOST,
-                ], true) ? now() : null,
-            ]);
-        }
-
-        $ticket->update([
-            'settlement_status' => $settlement['status'],
-            'settlement_note' => $settlement['note'],
-            'settlement_source' => 'auto',
-        ]);
-
-        // Solo se registra el movimiento cuando el estado cambia, para no
-        // duplicar la entrada en cada intento de cobro.
-        if ($settlement['status'] !== $previousStatus) {
-            $this->movements->record(
-                $ticket,
-                $this->movementTypeForSettlement($settlement['status']),
-                auth('api')->user(),
-                fromStatus: $previousStatus,
-                toStatus: $settlement['status'],
-                notes: $settlement['note'],
-            );
-        }
-
-        return $settlement;
+    /**
+     * Mensaje al usuario según el estado de la liquidación.
+     *
+     * @param  array{status: string, note: string}  $settlement
+     */
+    private function settlementMessage(array $settlement): string
+    {
+        return match ($settlement['status']) {
+            Ticket::SETTLEMENT_LOST => 'El ticket no es ganador. '.$settlement['note'],
+            Ticket::SETTLEMENT_PENDING => 'Aún no hay resultados oficiales para el ticket. '.$settlement['note'],
+            Ticket::SETTLEMENT_REVIEW => 'El ticket requiere validación del supervisor. '.$settlement['note'],
+            default => $settlement['note'],
+        };
     }
 
     private function movementTypeForSettlement(string $status): string
@@ -427,14 +380,37 @@ class TicketController extends Controller
         };
     }
 
+    /**
+     * Prepara una apuesta de animalitos: varios animalitos, cada uno con su
+     * monto, todos del mismo sorteo.
+     *
+     * El ticket declara a qué sorteo apuesta (`sorteo_at`): esa es la
+     * referencia que usa luego la liquidación, de modo que nunca se valida
+     * contra un sorteo distinto del elegido.
+     */
     private function prepareAnimalitos(Request $request): array
     {
         $data = $request->validate([
             'lottery_id' => ['required', 'integer'],
-            'lottery_animal_id' => ['required', 'integer'],
+            'sorteo_date' => ['required', 'date_format:Y-m-d'],
+            'sorteo_time' => ['required', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'selections' => ['required', 'array', 'min:1', 'max:20'],
+            'selections.*.lottery_animal_id' => ['required', 'integer', 'distinct'],
+            'selections.*.amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
         ], [
             'lottery_id.required' => 'Debe seleccionar una lotería.',
-            'lottery_animal_id.required' => 'Debe seleccionar un número.',
+            'sorteo_date.required' => 'Debe seleccionar la fecha del sorteo.',
+            'sorteo_date.date_format' => 'La fecha del sorteo debe tener el formato AAAA-MM-DD.',
+            'sorteo_time.required' => 'Debe seleccionar la hora del sorteo.',
+            'sorteo_time.regex' => 'La hora del sorteo debe tener el formato HH:MM.',
+            'selections.required' => 'Debe seleccionar al menos un animalito.',
+            'selections.min' => 'Debe seleccionar al menos un animalito.',
+            'selections.max' => 'Un ticket no puede tener más de 20 animalitos.',
+            'selections.*.lottery_animal_id.required' => 'Cada fila debe tener un animalito.',
+            'selections.*.lottery_animal_id.distinct' => 'No puedes repetir el mismo animalito en un ticket.',
+            'selections.*.amount.required' => 'Cada animalito debe tener un monto.',
+            'selections.*.amount.numeric' => 'El monto debe ser un número.',
+            'selections.*.amount.min' => 'El monto debe ser mayor que cero.',
         ]);
 
         $lottery = Lottery::find($data['lottery_id']);
@@ -445,13 +421,38 @@ class TicketController extends Controller
             ]);
         }
 
-        $animal = LotteryAnimal::where('lottery_id', $lottery->id)
-            ->where('is_enabled', true)
-            ->find($data['lottery_animal_id']);
+        // La hora elegida tiene que ser uno de los horarios de la lotería.
+        $drawTimes = $lottery->draw_times ?? [];
 
-        if (! $animal) {
+        if ($drawTimes === []) {
             throw ValidationException::withMessages([
-                'lottery_animal_id' => 'El número seleccionado no está habilitado.',
+                'sorteo_time' => 'Esta lotería no tiene horarios de sorteo configurados. Contacta al administrador.',
+            ]);
+        }
+
+        if (! in_array($data['sorteo_time'], $drawTimes, true)) {
+            throw ValidationException::withMessages([
+                'sorteo_time' => 'El horario seleccionado no corresponde a un sorteo de esta lotería.',
+            ]);
+        }
+
+        $sorteoAt = Carbon::createFromFormat('Y-m-d H:i', $data['sorteo_date'].' '.$data['sorteo_time']);
+
+        if ($sorteoAt->isPast()) {
+            throw ValidationException::withMessages([
+                'sorteo_date' => 'El sorteo seleccionado ya pasó. Elige un horario pendiente.',
+            ]);
+        }
+
+        // No se puede apostar a un sorteo que ya tiene resultado oficial.
+        $alreadyResolved = AnimalitoSorteo::where('lottery_id', $lottery->id)
+            ->where('is_resolved', true)
+            ->where('sorteo_at', $sorteoAt)
+            ->exists();
+
+        if ($alreadyResolved) {
+            throw ValidationException::withMessages([
+                'sorteo_time' => 'Ese sorteo ya tiene resultado oficial registrado.',
             ]);
         }
 
@@ -463,24 +464,52 @@ class TicketController extends Controller
             ]);
         }
 
-        return [
-            'odds' => $odds,
-            'selections' => [[
+        $animals = $lottery->animals()
+            ->whereIn('id', collect($data['selections'])->pluck('lottery_animal_id'))
+            ->where('is_enabled', true)
+            ->get()
+            ->keyBy('id');
+
+        $selections = [];
+        $stake = 0.0;
+
+        foreach ($data['selections'] as $item) {
+            $animal = $animals->get((int) $item['lottery_animal_id']);
+
+            if (! $animal) {
+                throw ValidationException::withMessages([
+                    'selections' => 'Uno de los animalitos seleccionados no está habilitado en esta lotería.',
+                ]);
+            }
+
+            $amount = round((float) $item['amount'], 2);
+            $stake += $amount;
+
+            $selections[] = [
                 'lottery_id' => $lottery->id,
                 'lottery_animal_id' => $animal->id,
                 'selection_label' => 'N° '.$animal->number.' - '.$animal->animal,
                 'odd' => $odds,
+                'amount' => $amount,
                 'metadata' => [
                     'lottery' => $lottery->name,
                     'number' => $animal->number,
                     'animal' => $animal->animal,
                     'multiplier' => $odds,
+                    'sorteo_at' => $sorteoAt->toIso8601String(),
                 ],
-            ]],
+            ];
+        }
+
+        return [
+            'odds' => $odds,
+            'stake' => round($stake, 2),
+            'sorteo_at' => $sorteoAt,
+            'selections' => $selections,
         ];
     }
 
-    private function prepareHipismo(Request $request): array
+    private function prepareHipismo(Request $request, float $stake): array
     {
         $data = $request->validate([
             'race_id' => ['required', 'integer'],
@@ -523,11 +552,13 @@ class TicketController extends Controller
 
         return [
             'odds' => $odds,
+            'stake' => round($stake, 2),
             'selections' => [[
                 'race_id' => $race->id,
                 'horse_id' => $horse->id,
                 'selection_label' => 'N° '.$horse->number.' - '.$horse->name,
                 'odd' => $odds,
+                'amount' => round($stake, 2),
                 'metadata' => [
                     'meeting' => $race->meeting,
                     'race' => $race->name,
@@ -541,7 +572,7 @@ class TicketController extends Controller
         ];
     }
 
-    private function prepareParley(Request $request): array
+    private function prepareParley(Request $request, float $stake): array
     {
         $data = $request->validate([
             'selections' => ['required', 'array', 'min:2', 'max:20'],
@@ -605,6 +636,7 @@ class TicketController extends Controller
                 'market_id' => isset($selection['market_id']) ? (int) $selection['market_id'] : null,
                 'selection_label' => $selection['selection'],
                 'odd' => $odd,
+                'amount' => round($stake, 2),
                 'metadata' => [
                     'league' => $selection['league'] ?? null,
                     'home' => $home,
