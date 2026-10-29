@@ -21,6 +21,24 @@ const STATUS_LABELS = {
 
 export const VENEZUELA_TIMEZONE = 'America/Caracas';
 
+/**
+ * Estados en los que un partido todavia no ha comenzado y por lo tanto
+ * admite apuesta.
+ */
+export const NOT_STARTED_STATUSES = ['NS', 'TBD', '1'];
+
+/**
+ * Indica si el evento todavia no ha empezado.
+ *
+ * Un partido en vivo o terminado no admite apuesta, asi que no se lista
+ * para ver sus cuotas.
+ */
+export function isNotStarted(event) {
+  const short = String(event?.status?.short ?? '').toUpperCase();
+
+  return NOT_STARTED_STATUSES.includes(short);
+}
+
 export function todayISO() {
   // 'en-CA' formatea como AAAA-MM-DD
   return new Intl.DateTimeFormat('en-CA', {

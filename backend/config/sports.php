@@ -57,6 +57,42 @@ return [
 
     'status_host' => 'https://v3.football.api-sports.io',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Mercados tradicionales
+    |--------------------------------------------------------------------------
+    |
+    | El proveedor devuelve decenas de mercados por partido (casi 50 en
+    | fútbol). Para el jugador solo tienen sentido los tradicionales: el
+    | resto (primer tiempo, Odd/Even, Team To Score, handicaps por
+    | quartos...) se esconden.
+    |
+    | Los identificadores son los del proveedor (API-SPORTS) y varian por
+    | deporte: el "Match Winner" es el 1 en fútbol, el 14 en béisbol y el
+    | 1 en baloncesto e hockey.
+    |
+    */
+
+    'traditional_markets' => [
+        // 1 Match Winner · 2 Home/Away · 4 Asian Handicap
+        // 5 Goals Over/Under · 8 Both Teams Score · 12 Double Chance
+        'football' => [1, 2, 4, 5, 8, 12],
+
+        // 1 Home/Away · 2 Asian Handicap · 5 Over/Under · 14 Match Winner
+        'baseball' => [1, 2, 5, 14],
+
+        // 1 3Way Result · 2 Home/Away · 3 Asian Handicap
+        // 4 Over/Under · 7 Double Chance
+        'basketball' => [1, 2, 3, 4, 7],
+
+        // 1 3Way Result · 2 Home/Away · 5 Both Teams To Score
+        // 9 Double Chance · 10 Total - Home · 11 Total - Away
+        'hockey' => [1, 2, 5, 9, 10, 11],
+
+        // La NBA no ofrece cuotas.
+        'nba' => [],
+    ],
+
     'sports' => [
         'football' => [
             'label' => 'Fútbol',

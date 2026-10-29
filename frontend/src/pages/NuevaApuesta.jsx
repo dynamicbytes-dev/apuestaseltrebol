@@ -32,6 +32,7 @@ import {
   statusLabel,
   eventScore,
   resolveBetTeam,
+  isNotStarted,
 } from '../utils/parley';
 import { isDrawPast, isDrawClosed, formatDrawLabel } from '../utils/draws';
 
@@ -236,7 +237,9 @@ export default function NuevaApuesta() {
 
     api.get('/parley/events', { params: { sport: parleySport, date: parleyDate } })
       .then((r) => {
-        if (active) setParleyEvents(r.data.data);
+        // Solo los partidos que no han empezado admiten apuesta: los que
+        // ya estan en vivo o terminados no se listan para ver sus cuotas.
+        if (active) setParleyEvents(r.data.data.filter(isNotStarted));
       })
       .catch((err) => {
         if (active) setParleyEventsError(getErrorMessage(err));
