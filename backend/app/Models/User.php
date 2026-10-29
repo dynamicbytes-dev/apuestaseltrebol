@@ -27,6 +27,8 @@ class User extends Authenticatable implements JWTSubject
         'agency_id',
         'supervisor_id',
         'commission_percentage',
+        'max_bet_amount',
+        'max_ticket_payout',
     ];
 
     protected $hidden = [
@@ -42,6 +44,8 @@ class User extends Authenticatable implements JWTSubject
             'agency_id' => 'integer',
             'supervisor_id' => 'integer',
             'commission_percentage' => 'decimal:2',
+            'max_bet_amount' => 'decimal:2',
+            'max_ticket_payout' => 'decimal:2',
         ];
     }
 
@@ -74,5 +78,23 @@ class User extends Authenticatable implements JWTSubject
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class, 'taquilla_id');
+    }
+
+    /**
+     * Topes vigentes para este usuario.
+     *
+     * Si el usuario tiene topes propios, mandan; si no, se heredan los de su
+     * agencia. Devuelve null cuando no hay ningun tope puesto.
+     *
+     * @return array{max_bet_amount: float|null, max_ticket_payout: float|null}
+     */
+    public function effectiveLimits(): array
+    {
+        $agency = $this->agency;
+
+        return [
+            'max_bet_amount' => $this->max_bet_amount ?? $agency?->max_bet_amount,
+            'max_ticket_payout' => $this->max_ticket_payout ?? $agency?->max_ticket_payout,
+        ];
     }
 }

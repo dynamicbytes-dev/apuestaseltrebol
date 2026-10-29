@@ -207,8 +207,20 @@ Ambos aceptan `?from=AAAA-MM-DD&to=AAAA-MM-DD` (por defecto, los últimos 30 dí
 | **Taquilla** | Las ventas de **cada taquilla**, una por una | **el que tenga asignado** | Gestión de Taquillas (detalle) |
 | Agencia | La suma de las ventas de **todas** sus taquillas | **1.5%** | Agencias (admin) |
 
-- El **porcentaje de comisión es propio de cada taquilla**: se fija en el registro de la taquilla (módulo *Gestión de Taquillas*) y se puede editar después. El módulo **Agencias** del administrador muestra, por agencia, las ventas del periodo y el **1.5%** que corresponde, con un selector de fechas.
+- El **porcentaje de comisión es propio de cada taquilla**: se fija en el registro de la taquilla (módulo *Gestión de Taquillas*) y se puede editar después.
+- El **1.5% de cada agencia** se ve en dos sitios del panel del administrador, ambos con filtro de fechas:
+  - **Agencias**: columna *Comisión* por agencia, con selector *Ventas desde / Hasta* y atajos (Hoy, 7 días, 30 días, Todo).
+  - **Analíticas**: columna *Comisión* en el desglose por agencia, con el rango de fechas del módulo.
 - `SUPERVISOR_SHARE` (por defecto `0.13`) es el valor por defecto para las taquillas nuevas; `AGENCY_SHARE` (por defecto `0.015`) es el de las agencias.
+
+## Topes y límites
+
+Los gestiona el **supervisor**, para su propia agencia y para las taquillas que tiene a su cargo (módulo *Topes y Límites*). El administrador ya no tiene ese módulo.
+
+- Los **topes de la agencia** son el valor por defecto para todas sus taquillas.
+- Una taquilla puede tener **topes propios**, que mandan sobre los de la agencia.
+- Dejar vacío un campo significa que no hay límite.
+- Al emitir una apuesta se comprueban los topes **vigentes de la taquilla**, no los de la agencia.
 
 El historial de movimientos (`ticket_movements`) registra cada emisión, pago, anulación y cambio de liquidación con su autor, estado origen/destino, monto y nota.
 
@@ -296,7 +308,7 @@ La sesión usa tokens JWT. La duración se toma de `JWT_TTL` (en minutos, por de
 |---|---|---|
 | `GET` `POST` | `/agencies` | Listar agencias (con ventas y comisión) y registrar |
 | `PUT` `DELETE` | `/agencies/{agency}` | Editar y eliminar agencia |
-| `PATCH` | `/agencies/{agency}/limits` | Topes por agencia |
+| `PATCH` | `/agencies/{agency}/limits` | Topes por agencia (solo por API; el panel lo gestiona el supervisor) |
 | `GET` `POST` | `/supervisors` | Listar y registrar supervisores |
 | `PUT` `DELETE` | `/supervisors/{supervisor}` | Editar y eliminar supervisor |
 | `GET` `POST` | `/lotteries` | Listar y registrar loterías |
@@ -324,6 +336,9 @@ La sesión usa tokens JWT. La duración se toma de `JWT_TTL` (en minutos, por de
 | `GET` | `/analytics` | Analítica de su agencia |
 | `GET` `POST` | `/taquillas` | Taquillas de su agencia |
 | `PUT` `DELETE` | `/taquillas/{taquilla}` | Editar y eliminar taquilla |
+| `GET` | `/limits` | Topes de su agencia y de sus taquillas |
+| `PATCH` | `/limits` | Actualizar los topes de su agencia |
+| `PATCH` | `/taquillas/{taquilla}/limits` | Actualizar los topes de una taquilla suya |
 | `GET` | `/tickets` | Tickets de su agencia (filtros) |
 | `GET` | `/tickets/{ticket}/movements` | Historial de movimientos |
 | `POST` | `/tickets/{ticket}/review` | Resolver una jugada en revisión |
@@ -415,4 +430,5 @@ La CI (`.github/workflows/ci.yml`) corre en cada push y en cada PR contra `main`
 - [x] Zona horaria de la operación en hora de Caracas
 - [x] Comprobante ajustado a impresoras térmicas de 80 mm
 - [x] KPI de comisiones por agencia (1.5%) y porcentaje propio por taquilla
+- [x] Topes y límites gestionados por el supervisor (agencia y taquillas)
 - [x] Un solo estado por ticket, que se actualiza solo al registrar resultados

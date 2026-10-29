@@ -273,6 +273,8 @@ class AnalyticsService
 
     private function byAgency(string $from, string $to): Collection
     {
+        $percentage = (float) config('business.agency_share', 0.015);
+
         return Ticket::query()
             ->join('agencies', 'agencies.id', '=', 'tickets.agency_id')
             ->whereDate('tickets.created_at', '>=', $from)
@@ -292,6 +294,8 @@ class AnalyticsService
                 'stake' => round((float) $row->stake, 2),
                 'paid' => round((float) $row->paid, 2),
                 'net' => round((float) $row->stake - (float) $row->paid, 2),
+                'share_percentage' => $percentage * 100,
+                'share_amount' => round((float) $row->stake * $percentage, 2),
             ])
             ->values();
     }

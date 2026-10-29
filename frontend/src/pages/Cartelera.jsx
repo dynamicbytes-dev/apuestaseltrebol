@@ -480,8 +480,10 @@ export default function Cartelera() {
           {(data.parley ?? []).length > 0 && (
             <section className="card" style={{ marginBottom: '1.25rem' }}>
               <h2 className="card-title">
-                <Trophy size={16} style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />
-                Parley Deportivo
+                <span className="card-title-label">
+                  <Trophy size={16} style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />
+                  Parley Deportivo
+                </span>
               </h2>
               <div className="table-wrap">
                 <table className="table">
@@ -545,8 +547,10 @@ export default function Cartelera() {
           {(data.hipismo ?? []).length > 0 && (
             <section className="card" style={{ marginBottom: '1.25rem' }}>
               <h2 className="card-title">
-                <Flame size={16} style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />
-                Hipismo
+                <span className="card-title-label">
+                  <Flame size={16} style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />
+                  Hipismo
+                </span>
               </h2>
               <div className="table-wrap">
                 <table className="table">
@@ -583,8 +587,10 @@ export default function Cartelera() {
           {(data.animalitos ?? []).length > 0 && (
             <section className="card">
               <h2 className="card-title">
-                <Sparkles size={16} style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />
-                Animalitos
+                <span className="card-title-label">
+                  <Sparkles size={16} style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />
+                  Animalitos
+                </span>
               </h2>
               <div className="table-wrap">
                 <table className="table">

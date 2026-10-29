@@ -12,6 +12,7 @@ import {
   History,
   BarChart3,
   CalendarDays,
+  Sliders,
 } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import SessionTimer from '../components/SessionTimer';
@@ -23,6 +24,7 @@ const navItems = [
   { to: '/supervisor', label: 'Panel Supervisor', end: true, icon: LayoutDashboard },
   { to: '/cartelera', label: 'Cartelera de Resultados', icon: CalendarDays },
   { to: '/supervisor/taquillas', label: 'Gestión de Taquillas', icon: Store },
+  { to: '/supervisor/topes', label: 'Topes y Límites', icon: Sliders },
   { to: '/supervisor/historial', label: 'Historial de Tickets', icon: History },
   { to: '/supervisor/analiticas', label: 'Analíticas', icon: BarChart3 },
 ];
