@@ -18,7 +18,6 @@ import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
 import {
   TICKET_TYPE_LABELS,
-  TICKET_STATUS_LABELS,
   MOVEMENT_LABELS,
   ticketSingleStatus,
   settlementStatusLabel,
@@ -522,8 +521,8 @@ export default function TaquillaTickets() {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Estado:</span>
-                <span className={ticketStatusClass(selectedTicket.status)}>
-                  {TICKET_STATUS_LABELS[selectedTicket.status] ?? selectedTicket.status}
+                <span className={ticketSingleStatus(selectedTicket).className}>
+                  {ticketSingleStatus(selectedTicket).label}
                 </span>
               </div>
 
@@ -534,7 +533,7 @@ export default function TaquillaTickets() {
                 </div>
               )}
 
-              {selectedTicket.type === 'parley' && selectedTicket.settlement_status && (
+              {selectedTicket.settlement_status && selectedTicket.settlement_status !== 'pending' && (
                 <div
                   style={{
                     display: 'flex',

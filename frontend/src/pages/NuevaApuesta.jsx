@@ -141,7 +141,6 @@ export default function NuevaApuesta() {
     setSuccess(null);
     setStake('');
     setLotteryId('');
-    setAnimalId('');
     setAnimalRows([]);
     setDrawTime('');
     setRaceId('');
@@ -154,7 +153,6 @@ export default function NuevaApuesta() {
 
   const handleLotteryChange = (id) => {
     setLotteryId(id);
-    setAnimalId('');
     setAnimalRows([]);
     const lot = catalog?.lotteries?.find((l) => String(l.id) === String(id));
     setSelectedLottery(lot || null);
@@ -432,8 +430,7 @@ export default function NuevaApuesta() {
       setSuccess(`✅ ¡Ticket ${ticket.code} registrado con éxito! Premio potencial: ${formatAmount(ticket.potential_payout)}.`);
       setStake('');
       setLotteryId('');
-      setAnimalId('');
-      setAnimalRows([]);
+        setAnimalRows([]);
       setRaceId('');
       setHorseId('');
       setSelections([]);
