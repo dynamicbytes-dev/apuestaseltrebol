@@ -324,7 +324,7 @@ export default function Lotteries() {
             <h2 className="card-title">Registrar nueva lotería</h2>
 
             <form onSubmit={handleSubmit}>
-              <div className="form-row">
+              <div className="form-grid">
                 <div className="form-field">
                   <label htmlFor="lottery-name">Nombre de la lotería</label>
                   <input
@@ -465,7 +465,7 @@ export default function Lotteries() {
             </p>
 
             <form onSubmit={handleSaveResult}>
-              <div className="form-row">
+              <div className="form-grid">
                 <div className="form-field">
                   <label htmlFor="res-lottery">Lotería</label>
                   <select
