@@ -75,7 +75,8 @@ class TicketMovementController extends Controller
         }
 
         if (! empty($data['search'])) {
-            $query->where('code', 'ilike', '%'.$data['search'].'%');
+            // LOWER + LIKE funciona igual en PostgreSQL y en SQLite.
+            $query->whereRaw('LOWER(code) LIKE ?', ['%'.mb_strtolower($data['search']).'%']);
         }
 
         if (! empty($data['from'])) {

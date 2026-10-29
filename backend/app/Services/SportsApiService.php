@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Exceptions\SportsApiException;
+use App\Models\ParleyEventOverride;
 use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -48,18 +50,29 @@ class SportsApiService
     {
         $config = $this->sportConfig($sport);
 
-        $timezone = config('sports.timezone', 'America/Caracas');
+        $timezone = $this->timezone();
 
         // La API v2 de NBA no admite el parámetro timezone: se consultan la fecha
         // y el día UTC siguiente, y luego se filtra por la fecha local de Caracas.
         $isNba = $sport === 'nba';
-        $dates = $isNba
-            ? [$date, Carbon::parse($date, 'UTC')->addDay()->toDateString()]
-            : [$date];
+
+        $overrides = ParleyEventOverride::where('sport', $sport)->get();
+
+        // Si el administrador corrigió la fecha de algún evento, el
+        // proveedor sigue respondiendo por el día que él cree correcto:
+        // hay que mirar también los días vecinos y volver a agrupar por la
+        // fecha efectiva.
+        $days = [$date];
+
+        if ($overrides->isNotEmpty()) {
+            $days[] = Carbon::parse($date)->subDay()->toDateString();
+            $days[] = Carbon::parse($date)->addDay()->toDateString();
+            $days = array_values(array_unique($days));
+        }
 
         $responses = [];
 
-        foreach ($dates as $queryDate) {
+        foreach ($days as $queryDate) {
             $query = ['date' => $queryDate];
 
             if (! $isNba) {
@@ -85,6 +98,17 @@ class SportsApiService
             ->map(fn (array $event) => $this->normalizeEvent($sport, $event));
 
         if ($isNba) {
+            $events = $events
+                ->filter(fn (array $event) => $event['starts_at']
+                    && Carbon::parse($event['starts_at'])->setTimezone($timezone)->toDateString() === $date)
+                ->unique('id');
+        }
+
+        $events = $this->applyScheduleOverrides($events);
+
+        // Con correcciones el evento puede haber cambiado de día: se vuelve
+        // a agrupar por la fecha efectiva.
+        if ($overrides->isNotEmpty()) {
             $events = $events
                 ->filter(fn (array $event) => $event['starts_at']
                     && Carbon::parse($event['starts_at'])->setTimezone($timezone)->toDateString() === $date)
@@ -281,6 +305,49 @@ class SportsApiService
             })
             ->filter()
             ->implode(' ');
+    }
+
+    /**
+     * Aplica las correcciones manuales de calendario.
+     *
+     * El proveedor puede fechar mal un partido (una jornada movida, un
+     * partido aplazado). Cuando el administrador corrige la fecha, esta
+     * manda sobre la del proveedor y el evento conserva la original para
+     * que se pueda ver la diferencia.
+     */
+    private function applyScheduleOverrides(Collection $events): Collection
+    {
+        if ($events->isEmpty()) {
+            return $events;
+        }
+
+        $ids = $events->pluck('id')->filter()->all();
+
+        if ($ids === []) {
+            return $events;
+        }
+
+        $overrides = ParleyEventOverride::whereIn('external_event_id', $ids)
+            ->get()
+            ->keyBy('external_event_id');
+
+        if ($overrides->isEmpty()) {
+            return $events;
+        }
+
+        return $events->map(function (array $event) use ($overrides) {
+            $override = $overrides->get($event['id']);
+
+            if (! $override) {
+                return $event;
+            }
+
+            $event['original_starts_at'] = $event['starts_at'];
+            $event['starts_at'] = $this->toCaracasIso($override->starts_at);
+            $event['schedule_corrected'] = true;
+
+            return $event;
+        });
     }
 
     /**
