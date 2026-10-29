@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\AgencyController;
-use App\Http\Controllers\AnimalitoSorteoController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AnimalitoSorteoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HorseController;

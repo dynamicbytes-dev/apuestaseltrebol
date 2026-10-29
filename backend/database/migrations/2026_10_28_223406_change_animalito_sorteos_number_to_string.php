@@ -11,6 +11,7 @@ return new class extends Migration
     {
         if (DB::getDriverName() === 'pgsql') {
             DB::statement('ALTER TABLE animalito_sorteos ALTER COLUMN "number" TYPE VARCHAR(10) USING "number"::VARCHAR(10)');
+
             return;
         }
 
@@ -23,6 +24,7 @@ return new class extends Migration
     {
         if (DB::getDriverName() === 'pgsql') {
             DB::statement('ALTER TABLE animalito_sorteos ALTER COLUMN "number" TYPE INTEGER USING "number"::INTEGER');
+
             return;
         }
 

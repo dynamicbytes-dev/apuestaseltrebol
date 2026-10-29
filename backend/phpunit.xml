@@ -20,6 +20,11 @@
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="APP_KEY" value="base64:Td8KQeG+RVNZzj0AomckKfccQWgWlnS4Mn+fQ19yIhU="/>
+        <env name="JWT_SECRET" value="4a228c1c223ceaab6e41d0c7306368283bf3c904623f1ff04aad97b09b1a1b7f"/>
+        <!-- La clave nunca se usa: las peticiones al proveedor deportivo
+             van falseadas en los tests. -->
+        <env name="SPORTS_API_KEY" value="testing-sports-api-key"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>

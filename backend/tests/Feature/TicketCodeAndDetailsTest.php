@@ -133,4 +133,3 @@ class TicketCodeAndDetailsTest extends TestCase
         $this->assertEquals('Arsenal', $data['selections'][1]['metadata']['team']);
     }
 }
-

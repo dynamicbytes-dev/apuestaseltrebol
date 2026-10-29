@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Agency;
-use App\Models\AnimalitoSorteo;
 use App\Models\Lottery;
 use App\Models\LotteryAnimal;
 use App\Models\Ticket;

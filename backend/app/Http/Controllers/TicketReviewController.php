@@ -18,9 +18,7 @@ use Illuminate\Validation\Rule;
  */
 class TicketReviewController extends Controller
 {
-    public function __construct(private readonly TicketMovementService $movements)
-    {
-    }
+    public function __construct(private readonly TicketMovementService $movements) {}
 
     public function store(Request $request, Ticket $ticket): JsonResponse
     {

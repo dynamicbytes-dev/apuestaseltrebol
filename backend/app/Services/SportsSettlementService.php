@@ -19,9 +19,7 @@ use Illuminate\Support\Str;
  */
 class SportsSettlementService
 {
-    public function __construct(private readonly SportsApiService $api)
-    {
-    }
+    public function __construct(private readonly SportsApiService $api) {}
 
     /**
      * Liquida cada pierna del ticket y devuelve el estado global.
