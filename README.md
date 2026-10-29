@@ -346,8 +346,11 @@ Las variables que la suite necesita (`APP_KEY`, `JWT_SECRET`, `SPORTS_API_KEY`) 
 ```bash
 cd frontend
 npm run lint
+npm test
 npm run build
 ```
+
+Los tests de frontend (Vitest + jsdom) montan los módulos en un DOM real y comprueban que se renderizan. Sirven para que la CI detecte los errores que solo aparecen al abrir un modal o pulsar un botón (por ejemplo, una referencia a una función que ya no existe).
 
 ## Flujo de trabajo
 
@@ -372,7 +375,7 @@ git push -u origin feature/mi-cambio
 # Abrir PR de develop hacia main, esperar la CI y fusionar
 ```
 
-La CI (`.github/workflows/ci.yml`) corre en cada push y en cada PR contra `main` y `develop`: tests de PHPUnit y verificación de formato con Pint en el backend, lint y compilación en el frontend.
+La CI (`.github/workflows/ci.yml`) corre en cada push y en cada PR contra `main` y `develop`: tests de PHPUnit y verificación de formato con Pint en el backend; lint, tests de interfaz y compilación en el frontend.
 
 **Protección de ramas recomendada** (en *Settings → Branches* de GitHub):
 
