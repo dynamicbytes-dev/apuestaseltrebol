@@ -91,8 +91,12 @@ class SportsApiService
                 ->unique('id');
         }
 
+        // El orden es cronológico, no alfabético: las fechas pueden venir
+        // con desplazamientos distintos y comparar los textos las mezclaría.
         return $events
-            ->sortBy('starts_at')
+            ->sortBy(fn (array $event) => $event['starts_at']
+                ? Carbon::parse($event['starts_at'])->getTimestamp()
+                : 0)
             ->values()
             ->all();
     }
@@ -164,7 +168,7 @@ class SportsApiService
                 'id' => $bookmaker['id'] ?? null,
                 'name' => $bookmaker['name'] ?? 'Casa de apuestas',
             ],
-            'updated_at' => $item['update'] ?? null,
+            'updated_at' => $this->toCaracasIso($item['update'] ?? null),
             'markets' => $markets,
         ];
     }
@@ -180,14 +184,19 @@ class SportsApiService
     {
         $config = $this->sportConfig($sport);
 
+        $query = [$config['result_query'] ?? 'id' => $eventId];
+
+        // Igual que en events(): la API devuelve las fechas convertidas a la
+        // zona de la operación. La NBA es la excepción: no admite el
+        // parámetro y devuelve UTC, que se corrige al normalizar.
+        if ($sport !== 'nba') {
+            $query['timezone'] = $this->timezone();
+        }
+
         $payload = Cache::remember(
             "sports-api:{$sport}:result:{$eventId}",
             now()->addMinutes((int) config('sports.result_cache_minutes', 60)),
-            fn () => $this->request(
-                $config['host'],
-                $config['events_path'],
-                [$config['result_query'] ?? 'id' => $eventId]
-            )
+            fn () => $this->request($config['host'], $config['events_path'], $query)
         );
 
         $errors = $this->extractErrors($payload);
@@ -274,6 +283,33 @@ class SportsApiService
             ->implode(' ');
     }
 
+    /**
+     * Normaliza una fecha del proveedor a la hora de Caracas.
+     *
+     * Cada deporte devuelve la fecha con su propio desplazamiento: los que
+     * aceptan el parámetro "timezone" la devuelven ya convertida y la NBA en
+     * UTC. Aquí todas quedan en Caracas, que es la hora de la operación.
+     */
+    private function toCaracasIso(mixed $value): ?string
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)
+                ->setTimezone($this->timezone())
+                ->format('Y-m-d\TH:i:sP');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function timezone(): string
+    {
+        return config('sports.timezone', 'America/Caracas');
+    }
+
     private function normalizeEvent(string $sport, array $event): array
     {
         return match ($sport) {
@@ -303,7 +339,7 @@ class SportsApiService
                 'name' => data_get($event, 'teams.away.name'),
                 'logo' => data_get($event, 'teams.away.logo'),
             ],
-            'starts_at' => data_get($event, 'fixture.date'),
+            'starts_at' => $this->toCaracasIso(data_get($event, 'fixture.date')),
             'status' => [
                 'short' => data_get($event, 'fixture.status.short'),
                 'long' => data_get($event, 'fixture.status.long'),
@@ -336,7 +372,7 @@ class SportsApiService
                 'name' => data_get($event, 'teams.away.name'),
                 'logo' => data_get($event, 'teams.away.logo'),
             ],
-            'starts_at' => data_get($event, 'date'),
+            'starts_at' => $this->toCaracasIso(data_get($event, 'date')),
             'status' => [
                 'short' => data_get($event, 'status.short'),
                 'long' => data_get($event, 'status.long'),
@@ -369,7 +405,7 @@ class SportsApiService
                 'name' => data_get($event, 'teams.visitors.name'),
                 'logo' => data_get($event, 'teams.visitors.logo'),
             ],
-            'starts_at' => data_get($event, 'date.start'),
+            'starts_at' => $this->toCaracasIso(data_get($event, 'date.start')),
             'status' => [
                 'short' => (string) data_get($event, 'status.short'),
                 'long' => data_get($event, 'status.long'),
@@ -448,7 +484,7 @@ class SportsApiService
             'away_name' => data_get($event, 'teams.away.name'),
             'home_score' => data_get($event, 'goals.home'),
             'away_score' => data_get($event, 'goals.away'),
-            'starts_at' => data_get($event, 'fixture.date'),
+            'starts_at' => $this->toCaracasIso(data_get($event, 'fixture.date')),
         ];
     }
 
@@ -466,7 +502,7 @@ class SportsApiService
             'away_name' => data_get($event, 'teams.away.name'),
             'home_score' => $this->scoreValue(data_get($event, 'teams.home.score')),
             'away_score' => $this->scoreValue(data_get($event, 'teams.away.score')),
-            'starts_at' => data_get($event, 'date'),
+            'starts_at' => $this->toCaracasIso(data_get($event, 'date')),
         ];
     }
 
@@ -484,7 +520,7 @@ class SportsApiService
             'away_name' => data_get($event, 'teams.visitors.name'),
             'home_score' => data_get($event, 'scores.home.points'),
             'away_score' => data_get($event, 'scores.visitors.points'),
-            'starts_at' => data_get($event, 'date.start'),
+            'starts_at' => $this->toCaracasIso(data_get($event, 'date.start')),
         ];
     }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
-import { VENEZUELA_TIMEZONE } from '../utils/parley';
+import { todayISO, formatTime, formatDateTime } from '../utils/parley';
 
 const STATUS_LABELS = {
   NS: 'Programado',
@@ -23,34 +23,6 @@ const STATUS_LABELS = {
   2: 'En vivo',
   3: 'Finalizado',
 };
-
-function todayISO() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60000;
-
-  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
-}
-
-function formatTime(value) {
-  if (!value) return '—';
-
-  return new Date(value).toLocaleTimeString('es-VE', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: VENEZUELA_TIMEZONE,
-  });
-}
-
-function formatDateTime(value) {
-  if (!value) return '—';
-
-  return new Date(value).toLocaleString('es-VE', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-    timeZone: VENEZUELA_TIMEZONE,
-  });
-}
 
 function statusLabel(status) {
   const short = String(status?.short ?? '').toUpperCase();

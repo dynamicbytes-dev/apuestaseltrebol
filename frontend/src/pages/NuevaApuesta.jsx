@@ -26,6 +26,7 @@ import {
 } from '../utils/tickets';
 import {
   todayISO,
+  shiftDateISO,
   formatTime,
   statusClass,
   statusLabel,
@@ -221,12 +222,9 @@ export default function NuevaApuesta() {
   }, [parleySport, parleyDate]);
 
   const handleSetQuickDate = (daysAhead) => {
-    const d = new Date();
-    d.setDate(d.getDate() + daysAhead);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    setParleyDate(`${yyyy}-${mm}-${dd}`);
+    // La fecha se calcula en hora de Caracas, que es la de la operación:
+    // "hoy" debe ser el hoy del operador, no el del reloj del navegador.
+    setParleyDate(shiftDateISO(todayISO(), daysAhead));
   };
 
   // Carga de eventos parley
