@@ -9,12 +9,30 @@ use App\Models\LotteryAnimal;
 use App\Models\Ticket;
 use App\Models\TicketSelection;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AnimalitosValidationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // La regla de validación usa el sorteo posterior a la emisión del
+        // ticket: se fija la hora para que el sorteo de prueba (10:00) sea
+        // siempre posterior a la creación de los tickets (09:00).
+        Carbon::setTestNow(Carbon::parse('2026-10-29 09:00:00'));
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     public function test_taquilla_validates_animalitos_tickets_against_manual_official_results(): void
     {
@@ -109,7 +127,7 @@ class AnimalitosValidationTest extends TestCase
 
         $responsePre->assertStatus(422)
             ->assertJson([
-                'message' => 'La lotería "Lotto Activo" aún no tiene resultados oficiales registrados por la administración para hoy.',
+                'message' => 'La lotería "Lotto Activo" aún no tiene resultados oficiales registrados por la administración para el sorteo posterior a la emisión del ticket.',
             ]);
 
         // 2. Administrador registra manualmente el sorteo oficial: Ganador N° 5 - León

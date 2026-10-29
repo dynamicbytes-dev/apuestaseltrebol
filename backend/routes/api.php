@@ -13,6 +13,7 @@ use App\Http\Controllers\SupervisorDashboardController;
 use App\Http\Controllers\TaquillaController;
 use App\Http\Controllers\TaquillaDashboardController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TicketReviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -75,6 +76,8 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->group(function 
     Route::post('/taquillas', [TaquillaController::class, 'store']);
     Route::put('/taquillas/{taquilla}', [TaquillaController::class, 'update']);
     Route::delete('/taquillas/{taquilla}', [TaquillaController::class, 'destroy']);
+
+    Route::post('/tickets/{ticket}/review', [TicketReviewController::class, 'store']);
 });
 
 Route::middleware(['auth', 'taquilla'])->prefix('taquilla')->group(function () {

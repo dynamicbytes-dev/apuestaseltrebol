@@ -20,6 +20,9 @@ import {
   TICKET_TYPE_LABELS,
   TICKET_STATUS_LABELS,
   ticketStatusClass,
+  settlementStatusLabel,
+  settlementStatusClass,
+  canPayTicket,
   formatAmount,
   formatTicketDate,
   canCancelTicket,
@@ -66,6 +69,15 @@ export default function TaquillaTickets() {
 
     if (ticket.status !== 'pending') {
       setError('Solo se pueden pagar tickets en estado pendiente.');
+      return;
+    }
+
+    if (!canPayTicket(ticket)) {
+      setError(
+        ticket.settlement_status === 'lost'
+          ? `El ticket ${ticket.code} no es ganador y no se puede pagar.`
+          : `El ticket ${ticket.code} requiere validación del supervisor antes de pagarse.`
+      );
       return;
     }
 
@@ -288,9 +300,19 @@ export default function TaquillaTickets() {
                         </strong>
                       </td>
                       <td>
-                        <span className={ticketStatusClass(t.status)}>
-                          {TICKET_STATUS_LABELS[t.status] ?? t.status}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+                          <span className={ticketStatusClass(t.status)}>
+                            {TICKET_STATUS_LABELS[t.status] ?? t.status}
+                          </span>
+                          {t.type === 'parley' && t.settlement_status && (
+                            <span
+                              className={settlementStatusClass(t.settlement_status)}
+                              title={t.settlement_note || undefined}
+                            >
+                              {settlementStatusLabel(t.settlement_status)}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
                         {formatTicketDate(t.created_at)}
@@ -309,17 +331,34 @@ export default function TaquillaTickets() {
 
                           {t.status === 'pending' && (
                             <>
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-sm"
-                                onClick={() => handlePay(t)}
-                                disabled={isProcessing}
-                                title="Pagar premio"
-                                style={{ background: '#059669', borderColor: '#059669' }}
-                              >
-                                <DollarSign size={14} />
-                                <span>{isProcessing ? 'Validando...' : 'Pagar'}</span>
-                              </button>
+                              {canPayTicket(t) ? (
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm"
+                                  onClick={() => handlePay(t)}
+                                  disabled={isProcessing}
+                                  title="Pagar premio"
+                                  style={{ background: '#059669', borderColor: '#059669' }}
+                                >
+                                  <DollarSign size={14} />
+                                  <span>{isProcessing ? 'Validando...' : 'Pagar'}</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  disabled
+                                  style={{ opacity: 0.45, cursor: 'not-allowed' }}
+                                  title={
+                                    t.settlement_status === 'lost'
+                                      ? 'El ticket no es ganador: no se puede pagar'
+                                      : 'El ticket requiere validación del supervisor'
+                                  }
+                                >
+                                  <DollarSign size={14} />
+                                  <span>No paga</span>
+                                </button>
+                              )}
 
                               {canCancelTicket(t) ? (
                                 <button
@@ -447,6 +486,29 @@ export default function TaquillaTickets() {
                 </span>
               </div>
 
+              {selectedTicket.type === 'parley' && selectedTicket.settlement_status && (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    marginBottom: '0.5rem',
+                  }}
+                >
+                  <span style={{ color: 'var(--text-secondary)' }}>Resultado de la jugada:</span>
+                  <span className={settlementStatusClass(selectedTicket.settlement_status)}>
+                    {settlementStatusLabel(selectedTicket.settlement_status)}
+                  </span>
+                </div>
+              )}
+
+              {selectedTicket.settlement_note && (
+                <div className="alert alert-info" style={{ marginBottom: '0.75rem', fontSize: '0.82rem' }}>
+                  {selectedTicket.settlement_note}
+                </div>
+              )}
+
               {/* Detalle de Selecciones / Jugadas */}
               <div style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginBottom: '0.75rem' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.4rem', fontWeight: 700 }}>
@@ -549,15 +611,33 @@ export default function TaquillaTickets() {
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 {selectedTicket.status === 'pending' && (
                   <>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={() => handlePay(selectedTicket)}
-                      style={{ background: '#059669', borderColor: '#059669' }}
-                    >
-                      <DollarSign size={16} />
-                      <span>Validar y Pagar</span>
-                    </button>
+                    {canPayTicket(selectedTicket) ? (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handlePay(selectedTicket)}
+                        style={{ background: '#059669', borderColor: '#059669' }}
+                      >
+                        <DollarSign size={16} />
+                        <span>Validar y Pagar</span>
+                      </button>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '0.78rem',
+                          color: 'var(--text-tertiary)',
+                          alignSelf: 'center',
+                          padding: '0.25rem 0.6rem',
+                          background: 'var(--bg-input)',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        {selectedTicket.settlement_status === 'lost'
+                          ? 'No se puede pagar: el ticket no es ganador'
+                          : 'No se puede pagar: requiere validación del supervisor'}
+                      </span>
+                    )}
                     {canCancelTicket(selectedTicket) ? (
                       <button
                         type="button"

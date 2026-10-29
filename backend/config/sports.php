@@ -23,6 +23,38 @@ return [
 
     'odds_cache_minutes' => 15,
 
+    'result_cache_minutes' => 60,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mercados liquidables automáticamente
+    |--------------------------------------------------------------------------
+    |
+    | Los mercados se identifican por su nombre normalizado (sin acentos, sin
+    | espacios ni signos). Solo se liquidan automáticamente los mercados
+    | reconocidos: cualquier otro mercado deja el ticket en estado "review"
+    | para que lo revise el supervisor. Es preferible escalar a revisión
+    | antes que pagar un ticket perdedor.
+    |
+    */
+
+    'settlement' => [
+        'winner_markets' => [
+            'matchwinner',
+            'moneyline',
+            '1x2',
+            'matchresult',
+            'homeaway',
+            'ganador',
+            'resultado',
+        ],
+        'both_teams_score_markets' => [
+            'bothteamscore',
+            'bothteamtoscore',
+            'ambosmarcan',
+        ],
+    ],
+
     'status_host' => 'https://v3.football.api-sports.io',
 
     'sports' => [

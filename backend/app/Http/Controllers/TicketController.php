@@ -7,7 +7,9 @@ use App\Models\Lottery;
 use App\Models\LotteryAnimal;
 use App\Models\Race;
 use App\Models\Ticket;
+use App\Models\TicketSelection;
 use App\Models\User;
+use App\Services\SportsSettlementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +19,10 @@ use Illuminate\Validation\ValidationException;
 
 class TicketController extends Controller
 {
+    public function __construct(private readonly SportsSettlementService $settlement)
+    {
+    }
+
     public function catalog(): JsonResponse
     {
         /** @var User $taquilla */
@@ -225,28 +231,57 @@ class TicketController extends Controller
             }
         }
 
+        // Validación automática de ganadores oficiales en Parley
+        if ($ticket->type === Ticket::TYPE_PARLEY) {
+            $settlement = $this->settleParley($ticket);
+
+            if ($settlement['status'] === Ticket::SETTLEMENT_LOST) {
+                return response()->json([
+                    'message' => 'El ticket no es ganador. '.$settlement['note'],
+                ], 422);
+            }
+
+            if ($settlement['status'] === Ticket::SETTLEMENT_PENDING) {
+                return response()->json([
+                    'message' => 'Aún no hay resultados oficiales para alguna de las jugadas del ticket. '.$settlement['note'],
+                ], 422);
+            }
+
+            if ($settlement['status'] === Ticket::SETTLEMENT_REVIEW) {
+                return response()->json([
+                    'message' => 'El ticket requiere validación del supervisor. '.$settlement['note'],
+                ], 422);
+            }
+        }
+
         // Validación de ganadores oficiales en Animalitos
         if ($ticket->type === Ticket::TYPE_ANIMALITOS) {
             foreach ($ticket->selections as $selection) {
                 if ($selection->lottery_id) {
                     $lottery = Lottery::find($selection->lottery_id);
-                    $ticketDate = $ticket->created_at->toDateString();
 
+                    // El sorteo aplicable es el primero ya resuelto posterior a
+                    // la emisión del ticket: es el sorteo en el que realmente
+                    // participó el cliente. Los sorteos sin resolver se
+                    // descartan y los anteriores no sirven.
                     $sorteo = AnimalitoSorteo::where('lottery_id', $selection->lottery_id)
-                        ->whereDate('sorteo_at', $ticketDate)
-                        ->orderByDesc('sorteo_at')
+                        ->where('is_resolved', true)
+                        ->where('sorteo_at', '>=', $ticket->created_at)
+                        ->orderBy('sorteo_at')
                         ->first();
 
                     if (! $sorteo) {
                         return response()->json([
-                            'message' => 'La lotería "'.($lottery?->name ?? 'Animalitos').'" aún no tiene resultados oficiales registrados por la administración para hoy.',
+                            'message' => 'La lotería "'.($lottery?->name ?? 'Animalitos').'" aún no tiene resultados oficiales registrados por la administración para el sorteo posterior a la emisión del ticket.',
                         ], 422);
                     }
 
                     $selectedAnimal = $selection->lotteryAnimal;
-                    $selectedNumber = $selectedAnimal?->number ?? (string) ($selection->metadata['number'] ?? '');
+                    $selectedNumber = (string) ($selectedAnimal?->number
+                        ?? $selection->metadata['number']
+                        ?? '');
 
-                    if ((string) $sorteo->number !== (string) $selectedNumber) {
+                    if ((string) $sorteo->number !== $selectedNumber) {
                         return response()->json([
                             'message' => "El ticket no es ganador. En el sorteo oficial de {$lottery->name} resultó ganador el N° {$sorteo->number} - {$sorteo->animal}.",
                         ], 422);
@@ -294,8 +329,47 @@ class TicketController extends Controller
         ]);
     }
 
-    private function prepareAnimalitos(Request $request): array
+    /**
+     * Liquida un ticket de parley contra el resultado oficial.
+     *
+     * Una decisión manual del supervisor tiene prioridad: el motor automático
+     * no debe sobrescribir un caso que ya fue revisado a mano.
+     *
+     * @return array{status: string, note: string|null, legs: array<int, array<string, mixed>>}
+     */
+    private function settleParley(Ticket $ticket): array
     {
+        if ($ticket->settlement_source === 'manual') {
+            return [
+                'status' => $ticket->settlement_status,
+                'note' => $ticket->settlement_note,
+                'legs' => [],
+            ];
+        }
+
+        $settlement = $this->settlement->settle($ticket->loadMissing('selections'));
+
+        foreach ($settlement['legs'] as $leg) {
+            $leg['selection']->update([
+                'settlement_status' => $leg['status'],
+                'settlement_note' => $leg['note'],
+                'settled_at' => in_array($leg['status'], [
+                    TicketSelection::SETTLEMENT_WON,
+                    TicketSelection::SETTLEMENT_LOST,
+                ], true) ? now() : null,
+            ]);
+        }
+
+        $ticket->update([
+            'settlement_status' => $settlement['status'],
+            'settlement_note' => $settlement['note'],
+            'settlement_source' => 'auto',
+        ]);
+
+        return $settlement;
+    }
+
+    private function prepareAnimalitos(Request $request): array    {
         $data = $request->validate([
             'lottery_id' => ['required', 'integer'],
             'lottery_animal_id' => ['required', 'integer'],
@@ -416,6 +490,7 @@ class TicketController extends Controller
             'selections.*.event_id' => ['required', 'string', 'distinct'],
             'selections.*.event_name' => ['required', 'string', 'max:255'],
             'selections.*.market' => ['required', 'string', 'max:255'],
+            'selections.*.market_id' => ['nullable', 'integer', 'min:1'],
             'selections.*.selection' => ['required', 'string', 'max:255'],
             'selections.*.odd' => ['required', 'numeric', 'min:1.01', 'max:1000'],
             'selections.*.league' => ['nullable', 'string', 'max:255'],
@@ -468,6 +543,7 @@ class TicketController extends Controller
                 'external_event_id' => (string) $selection['event_id'],
                 'event_name' => $selection['event_name'],
                 'market' => $selection['market'],
+                'market_id' => isset($selection['market_id']) ? (int) $selection['market_id'] : null,
                 'selection_label' => $selection['selection'],
                 'odd' => $odd,
                 'metadata' => [

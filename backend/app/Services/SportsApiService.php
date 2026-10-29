@@ -169,6 +169,42 @@ class SportsApiService
         ];
     }
 
+    /**
+     * Resultado oficial de un evento, usado para liquidar las jugadas.
+     *
+     * Devuelve un arreglo normalizado con el mismo shape para todos los
+     * deportes: si el proveedor ya no tiene el evento (partidos antiguos),
+     * `found` viene en false y el ticket debe pasar a revisión manual.
+     */
+    public function eventResult(string $sport, string $eventId): array
+    {
+        $config = $this->sportConfig($sport);
+
+        $payload = Cache::remember(
+            "sports-api:{$sport}:result:{$eventId}",
+            now()->addMinutes((int) config('sports.result_cache_minutes', 60)),
+            fn () => $this->request(
+                $config['host'],
+                $config['events_path'],
+                [$config['result_query'] ?? 'id' => $eventId]
+            )
+        );
+
+        $errors = $this->extractErrors($payload);
+
+        if ($errors !== null) {
+            throw new SportsApiException($errors);
+        }
+
+        $event = ($payload['response'] ?? [])[0] ?? null;
+
+        if (! is_array($event)) {
+            return $this->unknownResult();
+        }
+
+        return $this->normalizeResult($sport, $event);
+    }
+
     private function sportConfig(string $sport): array
     {
         $sportConfig = config("sports.sports.{$sport}");
@@ -364,5 +400,114 @@ class SportsApiService
             'updated_at' => null,
             'markets' => [],
         ];
+    }
+
+    /**
+     * Resultado de un evento que el proveedor ya no devuelve.
+     */
+    private function unknownResult(): array
+    {
+        return [
+            'found' => false,
+            'finished' => false,
+            'status_short' => null,
+            'status_long' => null,
+            'home_name' => null,
+            'away_name' => null,
+            'home_score' => null,
+            'away_score' => null,
+            'starts_at' => null,
+        ];
+    }
+
+    /**
+     * Normaliza el resultado de un evento al mismo shape para todos los
+     * deportes, para que el motor de liquidación no tenga que conocer la
+     * estructura de cada API.
+     */
+    private function normalizeResult(string $sport, array $event): array
+    {
+        return match ($sport) {
+            'football' => $this->normalizeFootballResult($event),
+            'nba' => $this->normalizeNbaResult($event),
+            default => $this->normalizeGameResult($event),
+        };
+    }
+
+    private function normalizeFootballResult(array $event): array
+    {
+        $statusShort = (string) data_get($event, 'fixture.status.short', '');
+        $statusLong = (string) data_get($event, 'fixture.status.long', '');
+
+        return [
+            'found' => true,
+            'finished' => $this->isFinished($statusShort, $statusLong),
+            'status_short' => $statusShort,
+            'status_long' => $statusLong,
+            'home_name' => data_get($event, 'teams.home.name'),
+            'away_name' => data_get($event, 'teams.away.name'),
+            'home_score' => data_get($event, 'goals.home'),
+            'away_score' => data_get($event, 'goals.away'),
+            'starts_at' => data_get($event, 'fixture.date'),
+        ];
+    }
+
+    private function normalizeGameResult(array $event): array
+    {
+        $statusShort = (string) data_get($event, 'status.short', '');
+        $statusLong = (string) data_get($event, 'status.long', '');
+
+        return [
+            'found' => true,
+            'finished' => $this->isFinished($statusShort, $statusLong),
+            'status_short' => $statusShort,
+            'status_long' => $statusLong,
+            'home_name' => data_get($event, 'teams.home.name'),
+            'away_name' => data_get($event, 'teams.away.name'),
+            'home_score' => $this->scoreValue(data_get($event, 'teams.home.score')),
+            'away_score' => $this->scoreValue(data_get($event, 'teams.away.score')),
+            'starts_at' => data_get($event, 'date'),
+        ];
+    }
+
+    private function normalizeNbaResult(array $event): array
+    {
+        $statusShort = (string) data_get($event, 'status.short', '');
+        $statusLong = (string) data_get($event, 'status.long', '');
+
+        return [
+            'found' => true,
+            'finished' => $this->isFinished($statusShort, $statusLong),
+            'status_short' => $statusShort,
+            'status_long' => $statusLong,
+            'home_name' => data_get($event, 'teams.home.name'),
+            'away_name' => data_get($event, 'teams.visitors.name'),
+            'home_score' => data_get($event, 'scores.home.points'),
+            'away_score' => data_get($event, 'scores.visitors.points'),
+            'starts_at' => data_get($event, 'date.start'),
+        ];
+    }
+
+    /**
+     * Determina si el evento ya tiene un resultado definitivo.
+     *
+     * Los estados de una postponed, cancelada o suspendida NO cuentan
+     * como finalizados: esos casos se envían a revisión manual.
+     */
+    private function isFinished(string $short, string $long): bool
+    {
+        $short = strtoupper(trim($short));
+        $lower = mb_strtolower(trim($long));
+
+        $finished = ['FT', 'AET', 'PEN', 'AOT', 'AP', 'AWD', 'WO', 'FIN', 'FINAL', 'F', '3', 'OFF', 'ENDED'];
+
+        if (in_array($short, $finished, true)) {
+            return true;
+        }
+
+        return str_contains($lower, 'finished')
+            || str_contains($lower, 'final')
+            || str_contains($lower, 'ended')
+            || str_contains($lower, 'completed');
     }
 }

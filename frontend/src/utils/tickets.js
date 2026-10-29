@@ -10,6 +10,51 @@ export const TICKET_STATUS_LABELS = {
   cancelled: 'Anulado',
 };
 
+// Estado de liquidación: indica si la jugada es ganadora, perdedora,
+// si todavía no hay resultado oficial o si requiere revisión manual.
+export const SETTLEMENT_STATUS_LABELS = {
+  pending: 'Pendiente de resultado',
+  won: 'Ganador',
+  lost: 'No ganador',
+  review: 'En revisión',
+};
+
+export function settlementStatusLabel(status) {
+  return SETTLEMENT_STATUS_LABELS[status] ?? status ?? '';
+}
+
+export function settlementStatusClass(status) {
+  if (status === 'won') {
+    return 'status-finished';
+  }
+
+  if (status === 'lost') {
+    return 'status-inactive';
+  }
+
+  if (status === 'review') {
+    return 'status-pending';
+  }
+
+  return 'status-pending';
+}
+
+/**
+ * El ticket solo se puede pagar si la liquidación lo permite.
+ * Un ticket perdedor o en revisión no habilita el pago en taquilla.
+ */
+export function canPayTicket(ticket) {
+  if (!ticket || ticket.status !== 'pending') {
+    return false;
+  }
+
+  if (ticket.type !== 'parley') {
+    return true;
+  }
+
+  return ticket.settlement_status !== 'lost' && ticket.settlement_status !== 'review';
+}
+
 export function ticketStatusClass(status) {
   if (status === 'paid') {
     return 'status-finished';

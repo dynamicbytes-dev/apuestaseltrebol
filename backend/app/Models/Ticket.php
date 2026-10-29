@@ -47,6 +47,7 @@ class Ticket extends Model
         'status',
         'settlement_status',
         'settlement_note',
+        'settlement_source',
         'paid_amount',
         'paid_at',
         'cancelled_at',
