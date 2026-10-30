@@ -39,26 +39,35 @@ php artisan serve
 
 API disponible en `http://localhost:8000/api`.
 
+> **Si el puerto 8000 está ocupado**, `php artisan serve` se levanta en el 8001
+> (toma el primer puerto libre). El frontend debe apuntar al que se esté
+> usando: ver `frontend/.env`.
+
 ### Frontend
 
 ```bash
 cd frontend
 npm install
+cp .env.example .env   # ajusta VITE_API_URL si el backend no está en el 8000
 npm run dev
 ```
 
 Abrir `http://localhost:5173` e iniciar sesión con el usuario administrador.
 
+`frontend/.env` es local y **no se versiona**: cada máquina apunta a su propio
+puerto de backend. La plantilla `frontend/.env.example` sí se versiona.
+
 ### Variables de entorno
 
-| Variable | Descripción |
-|---|---|
-| `DB_*` | Conexión a PostgreSQL (`pgsql`, `127.0.0.1:5432`, base `eltrebol`) |
-| `APP_TIMEZONE` | Zona horaria de la operación. Por defecto `America/Caracas`: los horarios de sorteo y las fechas de los tickets se registran en hora local |
-| `JWT_SECRET` | Secreto de firma de los tokens (`php artisan jwt:secret`) |
-| `JWT_TTL` | Duración de la sesión **en minutos**. El valor por defecto es 60 |
-| `SPORTS_API_KEY` | Clave de API-SPORTS. Nunca se expone al frontend |
-| `SPORTS_API_TIMEOUT` | Tiempo máximo de espera por consulta, en segundos |
+| Variable | Dónde | Descripción |
+|---|---|---|
+| `DB_*` | `backend/.env` | Conexión a PostgreSQL (`pgsql`, `127.0.0.1:5432`, base `eltrebol`) |
+| `APP_TIMEZONE` | `backend/.env` | Zona horaria de la operación. Por defecto `America/Caracas`: los horarios de sorteo y las fechas de los tickets se registran en hora local |
+| `JWT_SECRET` | `backend/.env` | Secreto de firma de los tokens (`php artisan jwt:secret`) |
+| `JWT_TTL` | `backend/.env` | Duración de la sesión **en minutos**. El valor por defecto es 60 |
+| `SPORTS_API_KEY` | `backend/.env` | Clave de API-SPORTS. Nunca se expone al frontend |
+| `SPORTS_API_TIMEOUT` | `backend/.env` | Tiempo máximo de espera por consulta, en segundos |
+| `VITE_API_URL` | `frontend/.env` | URL base de la API. Por defecto `http://127.0.0.1:8000/api` |
 
 ### Usuario administrador
 
