@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clover, Mail, Lock, Eye, EyeOff, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
 import api from '../api/client';
+import { getErrorMessage } from '../utils/errors';
 import { homePathForRole } from '../utils/roles';
 import ThemeToggle from '../components/ThemeToggle';
 
@@ -40,7 +41,10 @@ export default function Login() {
 
       navigate(homePathForRole(user.role));
     } catch (err) {
-      setError(err.response?.data?.message ?? 'Error al iniciar sesión. Verifique sus credenciales.');
+      // El mensaje sale del servidor cuando la respuesta lo trae. Si no hay
+      // respuesta (API apagada, puerto equivocado) el aviso lo dice, para no
+      // culpar a unas credenciales que pueden estar correctas.
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -207,7 +211,7 @@ export default function Login() {
               }}
             >
               <AlertCircle size={18} style={{ flexShrink: 0 }} />
-              <span>⏱️ Tu sesión finalizó automáticamente tras 5 minutos por seguridad. Ingresa nuevamente.</span>
+              <span>⏱️ Tu sesión finalizar y debes iniciar sesión nuevamente.</span>
             </div>
           )}
 
