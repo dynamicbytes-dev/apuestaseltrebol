@@ -8,7 +8,10 @@ import {
 } from '../utils/session';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000/api',
+  // Ruta relativa por defecto: el servidor de desarrollo de Vite reenvia
+  // "/api" al backend, y asi el puerto no hay que fijarlo en el frontend.
+  // Para un despliegue estatico se define VITE_API_URL con la URL completa.
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
   },
