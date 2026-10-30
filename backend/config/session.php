@@ -214,4 +214,21 @@ return [
 
     'partitioned' => env('SESSION_PARTITIONED_COOKIE', false),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Session Serialization
+    |--------------------------------------------------------------------------
+    |
+    | This value controls the serialization strategy for session data, which
+    | is JSON by default. Setting this to "php" allows the storage of PHP
+    | objects in the session but can make an application vulnerable to
+    | "gadget chain" attacks.
+    |
+    | La API no usa sesiones (la sesion vive en el token JWT), asi que esto
+    | solo afecta al web de Laravel.
+    |
+    */
+
+    'serialization' => env('SESSION_SERIALIZATION', 'json'),
+
 ];
