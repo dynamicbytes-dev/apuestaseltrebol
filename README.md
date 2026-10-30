@@ -40,22 +40,35 @@ php artisan serve
 API disponible en `http://localhost:8000/api`.
 
 > **Si el puerto 8000 está ocupado**, `php artisan serve` se levanta en el 8001
-> (toma el primer puerto libre). El frontend debe apuntar al que se esté
-> usando: ver `frontend/.env`.
+> (toma el primer puerto libre). El frontend **no necesita saber el puerto**:
+> lo detecta solo (ver *Frontend*).
 
 ### Frontend
 
 ```bash
 cd frontend
 npm install
-cp .env.example .env   # ajusta VITE_API_URL si el backend no está en el 8000
+cp .env.example .env   # opcional: no hace falta tocar nada
 npm run dev
 ```
 
 Abrir `http://localhost:5173` e iniciar sesión con el usuario administrador.
 
-`frontend/.env` es local y **no se versiona**: cada máquina apunta a su propio
-puerto de backend. La plantilla `frontend/.env.example` sí se versiona.
+El frontend llama a la ruta relativa `/api` y el servidor de desarrollo de Vite
+la reenvía al backend. **Al arrancar, Vite busca solo el backend** en los
+puertos 8000–8004 (usando la ruta de salud `/up` de Laravel, para no
+confundirse con otro servicio que escuche en el mismo puerto) y anuncia cuál
+encontró:
+
+```
+  [El Trébol] API del backend: http://127.0.0.1:8000
+```
+
+Así el puerto del backend deja de importar: da igual si `artisan serve` tomó el
+8000 o el 8001.
+
+`frontend/.env` es local y **no se versiona**: cada máquina puede tener su propia
+configuración. La plantilla `frontend/.env.example` sí se versiona.
 
 ### Variables de entorno
 
@@ -67,7 +80,8 @@ puerto de backend. La plantilla `frontend/.env.example` sí se versiona.
 | `JWT_TTL` | `backend/.env` | Duración de la sesión **en minutos**. El valor por defecto es 60 |
 | `SPORTS_API_KEY` | `backend/.env` | Clave de API-SPORTS. Nunca se expone al frontend |
 | `SPORTS_API_TIMEOUT` | `backend/.env` | Tiempo máximo de espera por consulta, en segundos |
-| `VITE_API_URL` | `frontend/.env` | URL base de la API. Por defecto `http://127.0.0.1:8000/api` |
+| `VITE_API_TARGET` | `frontend/.env` | Puerto fijo del backend. **Vacío por defecto**: se detecta solo al arrancar Vite |
+| `VITE_API_URL` | `frontend/.env` | URL completa de la API. Solo para despliegues estáticos (sin proxy inverso): `https://api.eltrebol.com/api`. Por defecto el frontend usa la ruta relativa `/api` |
 
 ### Usuario administrador
 

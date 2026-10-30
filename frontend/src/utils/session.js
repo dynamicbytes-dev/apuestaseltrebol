@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000/api';
+// Misma base que el cliente de la API: ruta relativa ("/api") en desarrollo
+// (la reenvia Vite al backend) o la URL completa que se defina en el .env.
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Margen en segundos para renovar el token antes de que caduque.

@@ -19,7 +19,7 @@ describe('Avisos del inicio de sesión', () => {
     const sinRespuesta = { request: {}, message: 'Network Error' };
 
     expect(getErrorMessage(sinRespuesta)).toMatch(/no se pudo conectar con el servidor/i);
-    expect(getErrorMessage(sinRespuesta)).toMatch(/VITE_API_URL/);
+    expect(getErrorMessage(sinRespuesta)).toMatch(/VITE_API_TARGET/);
   });
 
   it('muestra el mensaje del servidor cuando la respuesta trae uno', () => {
