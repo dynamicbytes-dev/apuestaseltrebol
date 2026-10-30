@@ -4,7 +4,7 @@ Sistema web multiagencia para la gestión de apuestas de taquilla: **animalitos*
 
 ## Stack
 
-- **Backend**: Laravel 12 + PostgreSQL + JWT (`tymon/jwt-auth`)
+- **Backend**: Laravel 13 + PostgreSQL + JWT (`tymon/jwt-auth`)
 - **Frontend**: React 19 + Vite + React Router + Axios
 
 ## Estructura
@@ -16,7 +16,7 @@ frontend/  SPA React
 
 ## Requisitos
 
-- PHP 8.2+
+- PHP 8.5.12
 - Composer
 - Node 20+
 - PostgreSQL
@@ -289,7 +289,7 @@ La revisión manual queda solo para casos que la API no puede resolver (por ejem
 
 Los resultados se registran en `animalito_sorteos`. El comando programado `fetch:animalitos` (cada 10 minutos, entre las 09:00 y las 19:00) consulta la fuente de cada lotería.
 
-La tarea se define en `backend/routes/console.php`. En Laravel 11 y 12 el planificador ya no lee `app/Console/Kernel.php`, así que una tarea definida ahí **nunca se ejecuta**.
+La tarea se define en `backend/routes/console.php`. Desde Laravel 11 el planificador ya no lee `app/Console/Kernel.php`, así que una tarea definida ahí **nunca se ejecuta**.
 
 ```bash
 # Instalar el planificador (una sola vez)
