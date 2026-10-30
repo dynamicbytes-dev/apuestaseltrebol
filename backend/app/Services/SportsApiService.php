@@ -596,8 +596,8 @@ class SportsApiService
             'status_long' => $statusLong,
             'home_name' => data_get($event, 'teams.home.name'),
             'away_name' => data_get($event, 'teams.away.name'),
-            'home_score' => $this->scoreValue(data_get($event, 'teams.home.score')),
-            'away_score' => $this->scoreValue(data_get($event, 'teams.away.score')),
+            'home_score' => $this->scoreValue(data_get($event, 'scores.home')),
+            'away_score' => $this->scoreValue(data_get($event, 'scores.away')),
             'starts_at' => $this->toCaracasIso(data_get($event, 'date')),
         ];
     }

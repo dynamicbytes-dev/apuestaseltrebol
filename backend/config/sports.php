@@ -47,6 +47,8 @@ return [
             'homeaway',
             'ganador',
             'resultado',
+            '3wayresult',
+            'threewayresult',
         ],
         'both_teams_score_markets' => [
             'bothteamscore',
