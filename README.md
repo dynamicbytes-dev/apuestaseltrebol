@@ -108,6 +108,24 @@ Emisión (taquilla)  →  pendiente  →  liquidación contra el resultado ofici
 - **Pago**: solo se permite si la liquidación resulta ganadora, y nunca por más de lo que corresponde.
 - **Anulación**: únicamente dentro de los **5 minutos** posteriores a la emisión.
 
+### Impresión del comprobante (impresora térmica)
+
+El botón *Imprimir* de la taquilla saca **solo el recibo**, en blanco y negro, con el ancho del papel térmico:
+
+| | |
+|---|---|
+| Papel | 80 mm (bobina) |
+| Área imprimible | 74 mm |
+| Tipografía | monoespaciada, 9 pt |
+| Márgenes de página | 0 |
+
+Cómo funciona:
+
+- `frontend/src/utils/print.js` copia el comprobante a un contenedor propio (`#print-root`, hijo directo del `body`), mide su **alto real con el ancho del papel** e inyecta una regla `@page { size: 80mm <alto>mm; margin: 0 }`. Chrome ignora `auto` en el alto de `@page`, de ahí la medida exacta: sin ella el papel sale del tamaño carta, con el recibo pegado a un lado y media hoja en blanco.
+- `frontend/src/styles/admin.css` (bloque `@media print`) oculta toda la interfaz con `body > *:not(#print-root) { display: none }` y centra el recibo con `margin: 0 auto`.
+
+**Para una impresora de 58 mm**: en `print.js` cambia `TICKET_PAPER_WIDTH_MM` a `58` y `TICKET_CONTENT_WIDTH_MM` a `52`, y ajusta los dos `width` del bloque `@media print` en `admin.css` al mismo ancho.
+
 ### Liquidación automática (parley)
 
 El motor de liquidación (`app/Services/SportsSettlementService.php`) consulta el resultado oficial del evento en el proveedor deportivo y resuelve cada pierna:
