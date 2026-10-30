@@ -4,10 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\TicketSettlementService;
 use Illuminate\Http\JsonResponse;
 
 class TaquillaDashboardController extends Controller
 {
+    public function __construct(
+        private readonly TicketSettlementService $settlements,
+    ) {}
+
     public function index(): JsonResponse
     {
         /** @var User $taquilla */
@@ -22,6 +27,10 @@ class TaquillaDashboardController extends Controller
             'stake_today' => round((float) (clone $todayQuery)->sum('stake'), 2),
             'pending' => Ticket::where('taquilla_id', $taquilla->id)
                 ->where('status', Ticket::STATUS_PENDING)
+                ->where(function ($query) {
+                    $query->whereNull('settlement_status')
+                        ->orWhere('settlement_status', '!=', Ticket::SETTLEMENT_LOST);
+                })
                 ->count(),
             'paid_today' => round((float) Ticket::where('taquilla_id', $taquilla->id)
                 ->where('status', Ticket::STATUS_PAID)
@@ -37,6 +46,8 @@ class TaquillaDashboardController extends Controller
             ->latest()
             ->limit(5)
             ->get();
+
+        $this->settlements->settleLocal($recent);
 
         return response()->json([
             'data' => [

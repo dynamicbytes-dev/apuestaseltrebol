@@ -17,9 +17,8 @@ import { getErrorMessage } from '../utils/errors';
 import {
   formatAmount,
   formatTicketDate,
-  TICKET_STATUS_LABELS,
   TICKET_TYPE_LABELS,
-  ticketStatusClass,
+  ticketSingleStatus,
 } from '../utils/tickets';
 
 function formatLimit(value) {
@@ -226,9 +225,14 @@ export default function TaquillaHome() {
                           </strong>
                         </td>
                         <td>
-                          <span className={ticketStatusClass(ticket.status)}>
-                            {TICKET_STATUS_LABELS[ticket.status] ?? ticket.status}
-                          </span>
+                          {(() => {
+                            const single = ticketSingleStatus(ticket);
+                            return (
+                              <span className={single.className}>
+                                {single.label}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
                           {formatTicketDate(ticket.created_at)}
