@@ -59,7 +59,7 @@ describe('Impresion del comprobante', () => {
     ticket.id = 'printable-ticket';
 
     const cabecera = document.createElement('div');
-    cabecera.textContent = 'EL TRÉBOL';
+    cabecera.textContent = 'MATRIX BET';
     ticket.appendChild(cabecera);
 
     if (conMovimientos) {
@@ -105,7 +105,7 @@ describe('Impresion del comprobante', () => {
     expect(padreAlImprimir).toBe(document.body);
 
     expect(copiaAlImprimir).not.toBeNull();
-    expect(copiaAlImprimir.textContent).toContain('EL TRÉBOL');
+    expect(copiaAlImprimir.textContent).toContain('MATRIX BET');
 
     // El comprobante original no se mueve: el modal sigue intacto.
     expect(original.parentElement).toBe(document.body);

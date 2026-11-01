@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AnimalitoSorteo;
+use App\Models\HorseRacingBet;
 use App\Models\Lottery;
 use App\Models\LotteryAnimal;
 use App\Models\Race;
@@ -14,6 +15,7 @@ use App\Services\TicketSettlementService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -68,10 +70,13 @@ class TicketController extends Controller
                 'meeting' => $race->meeting,
                 'track' => $race->track,
                 'race_date' => $race->race_date,
+                'is_valida' => (bool) $race->is_valida,
+                'valida_number' => $race->valida_number,
                 'horses' => $race->horses->map(fn ($horse) => [
                     'id' => $horse->id,
                     'number' => $horse->number,
                     'name' => $horse->name,
+                    'jockey' => $horse->jockey,
                     'dividend' => $horse->dividend,
                 ])->values(),
             ]);
@@ -102,7 +107,7 @@ class TicketController extends Controller
             'search' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $query = Ticket::with(['selections', 'agency', 'taquilla'])
+        $query = Ticket::with(['selections', 'agency', 'taquilla', 'horseRacingBet'])
             ->where('taquilla_id', auth('api')->id())
             ->latest();
 
@@ -146,13 +151,19 @@ class TicketController extends Controller
                 Ticket::TYPE_PARLEY,
             ])],
             // En animalitos el monto sale de la suma de los amounts por
-            // animalito: lo calcula el backend, nunca el cliente.
-            'stake' => ['required_unless:type,animalitos', 'numeric', 'min:0.01', 'max:999999999.99'],
+            // animalito. En hipismo con selección múltiple de caballos ('horses'), el monto sale de la suma de los montos por caballo.
+            'stake' => [
+                Rule::requiredIf(fn () => $request->input('type') !== Ticket::TYPE_ANIMALITOS && ! $request->has('horses')),
+                'nullable',
+                'numeric',
+                'min:0.01',
+                'max:999999999.99',
+            ],
         ], [
             'type.required' => 'Debe indicar el tipo de apuesta.',
             'type.in' => 'El tipo de apuesta no es válido.',
             'stake.required' => 'Debe indicar el monto de la apuesta.',
-            'stake.required_unless' => 'Debe indicar el monto de la apuesta.',
+            'stake.required_if' => 'Debe indicar el monto de la apuesta.',
             'stake.numeric' => 'El monto de la apuesta debe ser un número.',
             'stake.min' => 'El monto de la apuesta debe ser mayor que cero.',
         ]);
@@ -165,11 +176,11 @@ class TicketController extends Controller
 
         $prepared = match ($base['type']) {
             Ticket::TYPE_ANIMALITOS => $this->prepareAnimalitos($request),
-            Ticket::TYPE_HIPISMO => $this->prepareHipismo($request, (float) $base['stake']),
+            Ticket::TYPE_HIPISMO => $this->prepareHipismo($request, (float) ($base['stake'] ?? 0)),
             Ticket::TYPE_PARLEY => $this->prepareParley($request, (float) $base['stake']),
         };
 
-        $stake = round((float) ($prepared['stake'] ?? $base['stake']), 2);
+        $stake = round((float) ($prepared['stake'] ?? $base['stake'] ?? 0), 2);
 
         if ($topes['max_bet_amount'] !== null && $stake > (float) $topes['max_bet_amount']) {
             return $this->limitError(
@@ -177,7 +188,9 @@ class TicketController extends Controller
             );
         }
 
-        $potentialPayout = round($stake * $prepared['odds'], 2);
+        $potentialPayout = isset($prepared['potential_payout'])
+            ? round((float) $prepared['potential_payout'], 2)
+            : round($stake * $prepared['odds'], 2);
 
         if (
             $topes['max_ticket_payout'] !== null
@@ -205,6 +218,10 @@ class TicketController extends Controller
 
             $ticket->selections()->createMany($prepared['selections']);
 
+            if (! empty($prepared['horse_racing_bet'])) {
+                $ticket->horseRacingBet()->create($prepared['horse_racing_bet']);
+            }
+
             return $ticket;
         });
 
@@ -222,7 +239,7 @@ class TicketController extends Controller
         );
 
         return response()->json([
-            'data' => $ticket->load(['selections', 'agency', 'taquilla']),
+            'data' => $ticket->load(['selections', 'agency', 'taquilla', 'horseRacingBet']),
         ], 201);
     }
 
@@ -521,6 +538,381 @@ class TicketController extends Controller
 
     private function prepareHipismo(Request $request, float $stake): array
     {
+        $betType = $request->input('bet_type', HorseRacingBet::TYPE_GANADOR);
+
+        if (! in_array($betType, HorseRacingBet::BET_TYPES, true)) {
+            throw ValidationException::withMessages([
+                'bet_type' => 'El tipo de jugada hípica no es válido.',
+            ]);
+        }
+
+        if ($betType === HorseRacingBet::TYPE_CINCO_Y_SEIS) {
+            return $this->prepareCincoYSeis($request, $stake);
+        }
+
+        return $this->prepareSimpleHipismo($request, $stake, $betType);
+    }
+
+    /**
+     * Valida y prepara la jugada compleja del Cuadro del 5 y 6.
+     * Exige al menos una marca por cada carrera válida programada en la reunión
+     * antes de emitir y guardar el ticket.
+     */
+    private function prepareCincoYSeis(Request $request, float $stake): array
+    {
+        $meeting = $request->input('meeting');
+
+        // Si la reunión no fue enviada explícitamente, intentar inferirla de las carreras seleccionadas
+        if (empty($meeting) && $request->has('selections') && is_array($request->input('selections'))) {
+            $raw = $request->input('selections');
+            $sampleRaceId = null;
+            if (array_keys($raw) !== range(0, count($raw) - 1)) {
+                $sampleRaceId = (int) array_key_first($raw);
+            } elseif (isset($raw[0]['race_id'])) {
+                $sampleRaceId = (int) $raw[0]['race_id'];
+            }
+
+            if ($sampleRaceId) {
+                $meeting = Race::where('id', $sampleRaceId)->value('meeting');
+            }
+        }
+
+        if (empty($meeting)) {
+            throw ValidationException::withMessages([
+                'meeting' => 'Debe indicar la reunión programada para el Cuadro del 5 y 6.',
+            ]);
+        }
+
+        // Obtener las carreras válidas programadas para la reunión
+        $validRaces = Race::with(['horses' => fn ($query) => $query->orderBy('number')])
+            ->where('meeting', $meeting)
+            ->where(function ($query) {
+                $query->where('is_valida', true)
+                    ->orWhereRaw('LOWER(name) LIKE ?', ['%válida%'])
+                    ->orWhereRaw('LOWER(name) LIKE ?', ['%valida%']);
+            })
+            ->orderBy('valida_number')
+            ->orderBy('id')
+            ->get();
+
+        // Si no hay carreras marcadas explícitamente como válidas, tomar las carreras de la reunión
+        if ($validRaces->isEmpty()) {
+            $validRaces = Race::with(['horses' => fn ($query) => $query->orderBy('number')])
+                ->where('meeting', $meeting)
+                ->orderBy('id')
+                ->get();
+        }
+
+        if ($validRaces->isEmpty()) {
+            throw ValidationException::withMessages([
+                'meeting' => "No hay carreras válidas programadas para la reunión \"{$meeting}\".",
+            ]);
+        }
+
+        // Ninguna de las carreras válidas programadas puede estar ya finalizada
+        $finished = $validRaces->firstWhere('status', Race::STATUS_FINISHED);
+        if ($finished) {
+            throw ValidationException::withMessages([
+                'selections' => "No se pueden emitir jugadas del 5 y 6 porque la carrera \"{$finished->name}\" ya finalizó.",
+            ]);
+        }
+
+        $rawSelections = $request->input('selections');
+        if (empty($rawSelections)) {
+            throw ValidationException::withMessages([
+                'selections' => 'Debe incluir las marcas o combinaciones de ejemplares para el 5 y 6.',
+            ]);
+        }
+
+        $marksByRaceId = $this->parseCincoYSeisSelections($rawSelections, $validRaces);
+
+        // Validación estricta: Se exige al menos una marca por cada carrera válida programada
+        $missingRaces = [];
+        foreach ($validRaces as $index => $race) {
+            $marks = $marksByRaceId[$race->id] ?? [];
+            if (empty($marks)) {
+                $label = $race->valida_number
+                    ? "{$race->valida_number}ª Válida ({$race->name})"
+                    : ($race->name ?? 'Válida '.($index + 1));
+                $missingRaces[] = $label;
+            }
+        }
+
+        if (! empty($missingRaces)) {
+            throw ValidationException::withMessages([
+                'selections' => 'El Cuadro del 5 y 6 requiere al menos una marca por cada carrera válida programada. Faltan marcas en: '.implode(', ', $missingRaces).'.',
+            ]);
+        }
+
+        // Validar ejemplares seleccionados y calcular total de combinaciones (cuadros)
+        $combinations = 1;
+        $jsonSelections = [];
+        $ticketSelections = [];
+
+        foreach ($validRaces as $index => $race) {
+            $selectedHorseIds = $marksByRaceId[$race->id];
+            $validaNumber = $race->valida_number ?? ($index + 1);
+            $combinations *= count($selectedHorseIds);
+
+            $horsesInRace = $race->horses->keyBy('id');
+            $raceHorses = [];
+
+            foreach ($selectedHorseIds as $horseId) {
+                $horse = $horsesInRace->get($horseId);
+
+                if (! $horse) {
+                    throw ValidationException::withMessages([
+                        'selections' => "El ejemplar con ID {$horseId} no pertenece a la carrera \"{$race->name}\".",
+                    ]);
+                }
+
+                if ($horse->is_retired) {
+                    throw ValidationException::withMessages([
+                        'selections' => "El ejemplar N° {$horse->number} ({$horse->name}) en \"{$race->name}\" ha sido retirado y no admite apuestas.",
+                    ]);
+                }
+
+                $raceHorses[] = [
+                    'id' => $horse->id,
+                    'number' => $horse->number,
+                    'name' => $horse->name,
+                    'jockey' => $horse->jockey,
+                ];
+
+                $ticketSelections[] = [
+                    'race_id' => $race->id,
+                    'horse_id' => $horse->id,
+                    'selection_label' => "Válida {$validaNumber}: N° {$horse->number} - {$horse->name}".($horse->jockey ? " (J: {$horse->jockey})" : ''),
+                    'odd' => 1.0,
+                    'amount' => round($stake / max(1, $combinations), 2),
+                    'metadata' => [
+                        'bet_type' => HorseRacingBet::TYPE_CINCO_Y_SEIS,
+                        'meeting' => $meeting,
+                        'race' => $race->name,
+                        'valida' => $validaNumber,
+                        'horse_number' => $horse->number,
+                        'horse' => $horse->name,
+                        'jockey' => $horse->jockey,
+                    ],
+                ];
+            }
+
+            $jsonSelections[] = [
+                'race_id' => $race->id,
+                'valida_number' => $validaNumber,
+                'race_name' => $race->name,
+                'horses' => $raceHorses,
+            ];
+        }
+
+        return [
+            'odds' => 1.0,
+            'stake' => round($stake, 2),
+            'selections' => $ticketSelections,
+            'horse_racing_bet' => [
+                'bet_type' => HorseRacingBet::TYPE_CINCO_Y_SEIS,
+                'meeting' => $meeting,
+                'race_id' => null,
+                'selections' => $jsonSelections,
+                'combinations_count' => $combinations,
+            ],
+        ];
+    }
+
+    /**
+     * Normaliza los formatos de marcas del cajero a un mapa [race_id => [horse_id, ...]].
+     */
+    private function parseCincoYSeisSelections(mixed $rawSelections, Collection $validRaces): array
+    {
+        $marks = [];
+
+        if (! is_array($rawSelections)) {
+            return [];
+        }
+
+        $isAssoc = array_keys($rawSelections) !== range(0, count($rawSelections) - 1);
+
+        if ($isAssoc) {
+            foreach ($rawSelections as $rId => $hIds) {
+                $rIdInt = (int) $rId;
+                $hList = is_array($hIds) ? $hIds : [$hIds];
+                $marks[$rIdInt] = array_values(array_unique(array_filter(array_map('intval', $hList))));
+            }
+
+            return $marks;
+        }
+
+        foreach ($rawSelections as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $targetRaceId = null;
+
+            if (isset($item['race_id'])) {
+                $targetRaceId = (int) $item['race_id'];
+            } elseif (isset($item['valida'])) {
+                $validaIdx = (int) $item['valida'];
+                $matched = $validRaces->firstWhere('valida_number', $validaIdx) ?? $validRaces->values()->get($validaIdx - 1);
+                if ($matched) {
+                    $targetRaceId = $matched->id;
+                }
+            }
+
+            if (! $targetRaceId) {
+                continue;
+            }
+
+            $horseIds = [];
+            if (isset($item['horse_ids']) && is_array($item['horse_ids'])) {
+                $horseIds = $item['horse_ids'];
+            } elseif (isset($item['horses']) && is_array($item['horses'])) {
+                $horseIds = array_map(fn ($h) => is_array($h) ? ($h['id'] ?? $h['horse_id']) : $h, $item['horses']);
+            } elseif (isset($item['horse_id'])) {
+                $horseIds = [$item['horse_id']];
+            }
+
+            foreach ($horseIds as $hId) {
+                if ($hId) {
+                    $marks[$targetRaceId][] = (int) $hId;
+                }
+            }
+        }
+
+        foreach ($marks as $rId => $list) {
+            $marks[$rId] = array_values(array_unique($list));
+        }
+
+        return $marks;
+    }
+
+    /**
+     * Prepara jugadas hípicas individuales (ganador, place, etc.).
+     * Permite seleccionar múltiples caballos en una sola carrera, cada uno con su propio monto.
+     */
+    private function prepareSimpleHipismo(Request $request, float $stake, string $betType): array
+    {
+        if ($request->has('horses') && is_array($request->input('horses'))) {
+            $data = $request->validate([
+                'race_id' => ['required', 'integer'],
+                'horses' => ['required', 'array', 'min:1'],
+                'horses.*.horse_id' => ['required', 'integer'],
+                'horses.*.amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
+            ], [
+                'race_id.required' => 'Debe seleccionar una carrera.',
+                'horses.required' => 'Debe seleccionar al menos un ejemplar.',
+                'horses.min' => 'Debe seleccionar al menos un ejemplar.',
+                'horses.*.horse_id.required' => 'Cada selección debe especificar el ejemplar.',
+                'horses.*.amount.required' => 'Cada ejemplar debe tener un monto jugado.',
+                'horses.*.amount.min' => 'El monto de cada ejemplar debe ser mayor a 0.',
+            ]);
+
+            $race = Race::with(['horses' => fn ($query) => $query->orderBy('number')])
+                ->find($data['race_id']);
+
+            if (! $race || $race->status !== Race::STATUS_PENDING) {
+                throw ValidationException::withMessages([
+                    'race_id' => 'La carrera seleccionada no está disponible para apuestas.',
+                ]);
+            }
+
+            // Evitar duplicados del mismo ejemplar en el ticket
+            $horseIds = array_column($data['horses'], 'horse_id');
+            if (count($horseIds) !== count(array_unique($horseIds))) {
+                throw ValidationException::withMessages([
+                    'horses' => 'No puedes repetir el mismo ejemplar en el mismo ticket.',
+                ]);
+            }
+
+            $selections = [];
+            $selectedHorsesMeta = [];
+            $totalStake = 0.0;
+            $maxPotentialPayout = 0.0;
+            $maxOdds = 1.0;
+
+            foreach ($data['horses'] as $item) {
+                $horseId = (int) $item['horse_id'];
+                $horseAmount = round((float) $item['amount'], 2);
+                $horse = $race->horses->firstWhere('id', $horseId);
+
+                if (! $horse) {
+                    throw ValidationException::withMessages([
+                        'horses' => 'Uno de los ejemplares seleccionados no pertenece a la carrera.',
+                    ]);
+                }
+
+                if ($horse->is_retired) {
+                    throw ValidationException::withMessages([
+                        'horses' => 'El ejemplar N° '.$horse->number.' ('.$horse->name.') ha sido retirado de la carrera y no admite apuestas.',
+                    ]);
+                }
+
+                $odds = (float) $horse->dividend;
+                if ($odds <= 0) {
+                    $odds = 1.0;
+                }
+
+                if ($odds > $maxOdds) {
+                    $maxOdds = $odds;
+                }
+
+                $potentialForHorse = round($horseAmount * $odds, 2);
+                if ($potentialForHorse > $maxPotentialPayout) {
+                    $maxPotentialPayout = $potentialForHorse;
+                }
+
+                $totalStake += $horseAmount;
+
+                $selections[] = [
+                    'race_id' => $race->id,
+                    'horse_id' => $horse->id,
+                    'selection_label' => 'N° '.$horse->number.' - '.$horse->name.($horse->jockey ? ' (J: '.$horse->jockey.')' : ''),
+                    'odd' => $odds,
+                    'amount' => $horseAmount,
+                    'metadata' => [
+                        'bet_type' => $betType,
+                        'meeting' => $race->meeting,
+                        'race' => $race->name,
+                        'track' => $race->track,
+                        'race_date' => $race->race_date,
+                        'horse_number' => $horse->number,
+                        'horse' => $horse->name,
+                        'jockey' => $horse->jockey,
+                        'dividend' => $odds,
+                    ],
+                ];
+
+                $selectedHorsesMeta[] = [
+                    'id' => $horse->id,
+                    'number' => $horse->number,
+                    'name' => $horse->name,
+                    'jockey' => $horse->jockey,
+                    'dividend' => $odds,
+                    'amount' => $horseAmount,
+                ];
+            }
+
+            return [
+                'odds' => $maxOdds,
+                'stake' => round($totalStake, 2),
+                'potential_payout' => $maxPotentialPayout,
+                'selections' => $selections,
+                'horse_racing_bet' => [
+                    'bet_type' => $betType,
+                    'meeting' => $race->meeting,
+                    'race_id' => $race->id,
+                    'selections' => [
+                        [
+                            'race_id' => $race->id,
+                            'race_name' => $race->name,
+                            'horses' => $selectedHorsesMeta,
+                        ],
+                    ],
+                    'combinations_count' => count($selections),
+                ],
+            ];
+        }
+
         $data = $request->validate([
             'race_id' => ['required', 'integer'],
             'horse_id' => ['required', 'integer'],
@@ -554,31 +946,55 @@ class TicketController extends Controller
 
         $odds = (float) $horse->dividend;
 
+        // Si el caballo aún no tiene dividendo oficial (se registra cuando se marca al ganador), se asigna 1.0 de referencia
         if ($odds <= 0) {
-            throw ValidationException::withMessages([
-                'horse_id' => 'El caballo no tiene un dividendo configurado.',
-            ]);
+            $odds = 1.0;
         }
 
         return [
             'odds' => $odds,
             'stake' => round($stake, 2),
+            'potential_payout' => round($stake * $odds, 2),
             'selections' => [[
                 'race_id' => $race->id,
                 'horse_id' => $horse->id,
-                'selection_label' => 'N° '.$horse->number.' - '.$horse->name,
+                'selection_label' => 'N° '.$horse->number.' - '.$horse->name.($horse->jockey ? ' (J: '.$horse->jockey.')' : ''),
                 'odd' => $odds,
                 'amount' => round($stake, 2),
                 'metadata' => [
+                    'bet_type' => $betType,
                     'meeting' => $race->meeting,
                     'race' => $race->name,
                     'track' => $race->track,
                     'race_date' => $race->race_date,
                     'horse_number' => $horse->number,
                     'horse' => $horse->name,
+                    'jockey' => $horse->jockey,
                     'dividend' => $odds,
                 ],
             ]],
+            'horse_racing_bet' => [
+                'bet_type' => $betType,
+                'meeting' => $race->meeting,
+                'race_id' => $race->id,
+                'selections' => [
+                    [
+                        'race_id' => $race->id,
+                        'race_name' => $race->name,
+                        'horses' => [
+                            [
+                                'id' => $horse->id,
+                                'number' => $horse->number,
+                                'name' => $horse->name,
+                                'jockey' => $horse->jockey,
+                                'dividend' => $odds,
+                                'amount' => round($stake, 2),
+                            ],
+                        ],
+                    ],
+                ],
+                'combinations_count' => 1,
+            ],
         ];
     }
 

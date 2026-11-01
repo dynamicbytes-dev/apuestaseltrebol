@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AnimalitoSorteo;
+use App\Models\HorseRacingBet;
 use App\Models\Race;
 use App\Models\Ticket;
 use App\Models\TicketSelection;
@@ -214,7 +215,14 @@ class TicketSettlementService
      */
     private function settleHipismo(Ticket $ticket): array
     {
-        $ticket->loadMissing('selections');
+        $ticket->loadMissing(['selections', 'horseRacingBet']);
+
+        if ($ticket->horseRacingBet && $ticket->horseRacingBet->bet_type === HorseRacingBet::TYPE_CINCO_Y_SEIS) {
+            $raceIds = $ticket->selections->pluck('race_id')->filter()->unique()->all();
+            $races = Race::with('winner')->whereIn('id', $raceIds)->get()->keyBy('id');
+
+            return $this->settleCincoYSeis($ticket, $races);
+        }
 
         $selection = $ticket->selections->first();
 
@@ -240,11 +248,15 @@ class TicketSettlementService
      */
     private function settleHipismoWith(Ticket $ticket, Collection $carreras): array
     {
-        $ticket->loadMissing('selections');
+        $ticket->loadMissing(['selections', 'horseRacingBet']);
 
-        $selection = $ticket->selections->first();
+        if ($ticket->horseRacingBet && $ticket->horseRacingBet->bet_type === HorseRacingBet::TYPE_CINCO_Y_SEIS) {
+            return $this->settleCincoYSeis($ticket, $carreras);
+        }
 
-        if (! $selection || ! $selection->race_id) {
+        $selections = $ticket->selections;
+
+        if ($selections->isEmpty() || ! $selections->first()->race_id) {
             return $this->result(
                 Ticket::SETTLEMENT_REVIEW,
                 0.0,
@@ -253,7 +265,8 @@ class TicketSettlementService
             );
         }
 
-        $race = $carreras->get($selection->race_id);
+        $raceId = $selections->first()->race_id;
+        $race = $carreras->get($raceId);
 
         if (! $race || $race->status !== Race::STATUS_FINISHED) {
             return $this->result(
@@ -264,17 +277,36 @@ class TicketSettlementService
             );
         }
 
-        $won = (int) $race->winner_horse_id === (int) $selection->horse_id;
+        $officialDividend = (float) ($race->winner?->dividend ?? 0);
+        $totalPayable = 0.0;
+        $legs = [];
+        $wonAny = false;
+        $winningLabels = [];
+        $winningEffectiveOdd = 1.0;
 
-        $legs = [[
-            'selection_id' => $selection->id,
-            'label' => $selection->selection_label,
-            'amount' => (float) ($selection->amount ?? $ticket->stake),
-            'status' => $won ? TicketSelection::SETTLEMENT_WON : TicketSelection::SETTLEMENT_LOST,
-            'payout' => $won ? (float) $ticket->potential_payout : 0.0,
-        ]];
+        foreach ($selections as $sel) {
+            $isWinner = (int) $race->winner_horse_id === (int) $sel->horse_id;
+            $effectiveOdd = $officialDividend > 0 ? $officialDividend : (float) $sel->odd;
+            $selAmount = (float) ($sel->amount ?? $ticket->stake);
+            $payout = $isWinner ? round($selAmount * $effectiveOdd, 2) : 0.0;
 
-        if (! $won) {
+            if ($isWinner) {
+                $wonAny = true;
+                $totalPayable += $payout;
+                $winningLabels[] = $sel->selection_label;
+                $winningEffectiveOdd = $effectiveOdd;
+            }
+
+            $legs[] = [
+                'selection_id' => $sel->id,
+                'label' => $sel->selection_label,
+                'amount' => $selAmount,
+                'status' => $isWinner ? TicketSelection::SETTLEMENT_WON : TicketSelection::SETTLEMENT_LOST,
+                'payout' => $payout,
+            ];
+        }
+
+        if (! $wonAny) {
             $winnerName = $race->winner
                 ? 'N° '.$race->winner->number.' - '.$race->winner->name
                 : 'No asignado';
@@ -288,11 +320,115 @@ class TicketSettlementService
             );
         }
 
+        if ((float) $ticket->potential_payout !== $totalPayable) {
+            $ticket->update([
+                'total_odds' => $winningEffectiveOdd,
+                'potential_payout' => $totalPayable,
+            ]);
+        }
+
         return $this->result(
             Ticket::SETTLEMENT_WON,
-            (float) $ticket->potential_payout,
+            $totalPayable,
             $legs,
-            'El ejemplar apostado es el ganador oficial.'
+            'Ejemplar ganador: '.implode(', ', $winningLabels).' (Dividendo: '.number_format($winningEffectiveOdd, 2, '.', '').').'
+        );
+    }
+
+    /**
+     * @param  Collection<int, Race>  $carreras
+     * @return array{status: string, payable: float, legs: array<int, array<string, mixed>>, note: string}
+     */
+    private function settleCincoYSeis(Ticket $ticket, Collection $carreras): array
+    {
+        $ticket->loadMissing(['selections', 'horseRacingBet']);
+        $selections = $ticket->selections;
+
+        if ($selections->isEmpty()) {
+            return $this->result(
+                Ticket::SETTLEMENT_REVIEW,
+                0.0,
+                [],
+                'El ticket no contiene selecciones registradas para el 5 y 6.'
+            );
+        }
+
+        $byRace = $selections->groupBy('race_id');
+        $allFinished = true;
+        $totalValidas = $byRace->count();
+        $aciertos = 0;
+        $legs = [];
+        $failedRaceName = null;
+
+        foreach ($byRace as $raceId => $raceSelections) {
+            $race = $carreras->get($raceId) ?? Race::with('winner')->find($raceId);
+
+            if (! $race || $race->status !== Race::STATUS_FINISHED || ! $race->winner_horse_id) {
+                $allFinished = false;
+                foreach ($raceSelections as $s) {
+                    $legs[] = [
+                        'selection_id' => $s->id,
+                        'label' => $s->selection_label,
+                        'amount' => (float) ($s->amount ?? 0),
+                        'status' => TicketSelection::SETTLEMENT_PENDING,
+                        'payout' => 0.0,
+                    ];
+                }
+                continue;
+            }
+
+            $hit = $raceSelections->contains(fn ($s) => (int) $s->horse_id === (int) $race->winner_horse_id);
+            if ($hit) {
+                $aciertos++;
+            } elseif ($failedRaceName === null) {
+                $failedRaceName = $race->name;
+            }
+
+            foreach ($raceSelections as $s) {
+                $isWinner = (int) $s->horse_id === (int) $race->winner_horse_id;
+                $legs[] = [
+                    'selection_id' => $s->id,
+                    'label' => $s->selection_label,
+                    'amount' => (float) ($s->amount ?? 0),
+                    'status' => $isWinner ? TicketSelection::SETTLEMENT_WON : TicketSelection::SETTLEMENT_LOST,
+                    'payout' => 0.0,
+                ];
+            }
+        }
+
+        // En el 5 y 6 deben ganar las 6 válidas. Si en alguna válida finalizada no hubo acierto, el ticket es perdedor inmediatamente.
+        if ($failedRaceName !== null) {
+            return $this->result(
+                Ticket::SETTLEMENT_LOST,
+                0.0,
+                $legs,
+                "El cuadro del 5 y 6 no es ganador. No hubo acierto en la carrera \"{$failedRaceName}\" (se deben acertar las 6 válidas para ganar)."
+            );
+        }
+
+        if (! $allFinished) {
+            return $this->result(
+                Ticket::SETTLEMENT_PENDING,
+                0.0,
+                $legs,
+                "Cuadro del 5 y 6 con {$aciertos} acierto(s) en curso. Aún hay carreras válidas pendientes por disputarse en la reunión."
+            );
+        }
+
+        if ($aciertos === $totalValidas && $aciertos >= 6) {
+            return $this->result(
+                Ticket::SETTLEMENT_WON,
+                (float) $ticket->potential_payout,
+                $legs,
+                "¡Cuadro del 5 y 6 ganador! Acertó las 6 carreras válidas (6 de 6)."
+            );
+        }
+
+        return $this->result(
+            Ticket::SETTLEMENT_LOST,
+            0.0,
+            $legs,
+            "El cuadro del 5 y 6 acumuló {$aciertos} acierto(s) de {$totalValidas} válidas. Se requiere acertar las 6 válidas para ganar."
         );
     }
 

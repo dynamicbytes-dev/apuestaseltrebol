@@ -88,7 +88,7 @@ describe('Modulo de consultar y pagar tickets', () => {
       expect(screen.getByText('61556803')).toBeTruthy();
     });
 
-    expect(screen.getByText('EL TRÉBOL')).toBeTruthy();
+    expect(screen.getByText('MATRIX BET')).toBeTruthy();
     expect(screen.getByText(/Agencia:/)).toBeTruthy();
     // El equipo se muestra desde el metadata de la seleccion.
     expect(screen.getAllByText('Visitante').length).toBeGreaterThan(0);

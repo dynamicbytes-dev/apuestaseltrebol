@@ -65,6 +65,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
 
     Route::get('/races', [RaceController::class, 'index']);
     Route::post('/races', [RaceController::class, 'store']);
+    Route::put('/meetings/update', [RaceController::class, 'updateMeeting']);
     Route::get('/races/{race}', [RaceController::class, 'show']);
     Route::put('/races/{race}', [RaceController::class, 'update']);
     Route::put('/races/{race}/result', [RaceController::class, 'updateResult']);

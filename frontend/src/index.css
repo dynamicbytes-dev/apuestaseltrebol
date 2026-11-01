@@ -3,52 +3,74 @@
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', Menlo, Monaco, Consolas, monospace;
 
-  /* Color Palette - 2026 Obsidian & Emerald "El Trébol" Dark Theme */
-  --bg-canvas: #090d16;
-  --bg-canvas-subtle: #0d1322;
-  --bg-sidebar: #0b101d;
-  --bg-surface: #12192c;
-  --bg-surface-hover: #18223c;
-  --bg-surface-elevated: #1a2542;
-  --bg-glass: rgba(18, 25, 44, 0.75);
-  --bg-topbar: rgba(11, 16, 29, 0.75);
-  --bg-input: #0b1120;
-  --bg-card-gradient: linear-gradient(180deg, var(--bg-surface) 0%, rgba(18, 25, 44, 0.85) 100%);
-  --brand-title-gradient: linear-gradient(120deg, #ffffff 40%, #a7f3d0 100%);
-  --modal-overlay-bg: rgba(4, 7, 16, 0.82);
+  /* Color Palette - Sport & Adrenaline (Dinámico & Deportivo) */
+  --palette-bg: #121212;
+  --palette-card: #1E1E1E;
+  --palette-primary: #E11D48;
+  --palette-accent: #38BDF8;
+  --palette-text: #FFFFFF;
+  --palette-cashout: #10B981;
+
+  /* Surfaces (Dark Mode - Carbon Black & Textured Charcoal) */
+  --bg-canvas: #121212;
+  --bg-canvas-subtle: #181818;
+  --bg-sidebar: #1E1E1E;
+  --bg-surface: #1E1E1E;
+  --bg-surface-hover: #262626;
+  --bg-surface-elevated: #2A2A2A;
+  --bg-glass: rgba(30, 30, 30, 0.88);
+  --bg-topbar: rgba(24, 24, 24, 0.88);
+  --bg-input: #161616;
+  --bg-card-gradient: linear-gradient(180deg, #1E1E1E 0%, #171717 100%);
+  --brand-title-gradient: linear-gradient(120deg, #FFFFFF 40%, #38BDF8 75%, #E11D48 100%);
+  --modal-overlay-bg: rgba(10, 10, 10, 0.85);
 
   /* Borders & Dividers */
   --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.14);
-  --border-active: rgba(16, 185, 129, 0.5);
+  --border-medium: rgba(255, 255, 255, 0.16);
+  --border-active: #E11D48;
 
-  /* Brand Emerald Accents */
-  --primary: #10b981;
-  --primary-hover: #059669;
-  --primary-active: #047857;
-  --primary-light: rgba(16, 185, 129, 0.12);
-  --primary-glow: 0 0 24px rgba(16, 185, 129, 0.28);
+  /* Primary Accent: Crimson Red / Intense Fuchsia (#E11D48) */
+  --primary: #E11D48;
+  --primary-hover: #be123c;
+  --primary-active: #9f1239;
+  --primary-light: rgba(225, 29, 72, 0.15);
+  --primary-glow: 0 0 24px rgba(225, 29, 72, 0.4);
+
+  /* Secondary Accent: Electric Sky Blue (#38BDF8) */
+  --accent-sky: #38BDF8;
+  --accent-blue: #0284c7;
+  --accent-navy: #0f172a;
+
+  /* Cashier & Critical Action: High-Visibility Green (#10B981) */
+  --color-cashout: #10B981;
+  --color-cashout-hover: #059669;
+  --color-cashout-glow: 0 0 24px rgba(16, 185, 129, 0.45);
+
+  /* Odds Live Contrast */
+  --odd-up: #10B981;
+  --odd-down: #EF4444;
 
   /* Status Colors */
-  --emerald-400: #34d399;
-  --emerald-500: #10b981;
-  --amber-400: #fbbf24;
-  --amber-500: #f59e0b;
-  --rose-400: #fb7185;
-  --rose-500: #f43f5e;
-  --sky-400: #38bdf8;
-  --sky-500: #0ea5e9;
+  --emerald-400: #10B981;
+  --emerald-500: #059669;
+  --amber-400: #FBBF24;
+  --amber-500: #F59E0B;
+  --rose-400: #FB7185;
+  --rose-500: #E11D48;
+  --sky-400: #38BDF8;
+  --sky-500: #0284c7;
 
-  /* Text hierarchy */
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
-  --text-disabled: #475569;
+  /* Text Hierarchy */
+  --text-primary: #FFFFFF;
+  --text-secondary: #D4D4D8;
+  --text-tertiary: #A1A1AA;
+  --text-disabled: #52525B;
 
   /* Shadows & Depth */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.55), 0 4px 12px -2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.55), 0 2px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.7), 0 4px 12px -2px rgba(0, 0, 0, 0.5);
 
   /* Radii */
   --radius-xs: 6px;
@@ -65,39 +87,72 @@
   color-scheme: dark;
 }
 
-/* Light Theme - Clean, Modern 2026 SaaS Elegance */
+/* Light Theme - Clean Operator Mode (Modo Cajero / Libre de Distracciones) */
 [data-theme='light'] {
-  --bg-canvas: #f1f5f9;
-  --bg-canvas-subtle: #e2e8f0;
-  --bg-sidebar: #ffffff;
-  --bg-surface: #ffffff;
-  --bg-surface-hover: #f8fafc;
-  --bg-surface-elevated: #ffffff;
-  --bg-glass: rgba(255, 255, 255, 0.85);
-  --bg-topbar: rgba(255, 255, 255, 0.85);
-  --bg-input: #f8fafc;
-  --bg-card-gradient: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  --brand-title-gradient: linear-gradient(120deg, #0f172a 30%, #059669 100%);
-  --modal-overlay-bg: rgba(15, 23, 42, 0.6);
+  --palette-bg: #F4F4F5;
+  --palette-card: #FFFFFF;
+  --palette-primary: #E11D48;
+  --palette-accent: #0284C7;
+  --palette-text: #09090B;
+  --palette-cashout: #10B981;
 
-  --border-subtle: rgba(0, 0, 0, 0.08);
-  --border-medium: rgba(0, 0, 0, 0.14);
-  --border-active: rgba(16, 185, 129, 0.6);
+  /* Surfaces (Clean White & Soft Zinc Canvas) */
+  --bg-canvas: #F4F4F5;
+  --bg-canvas-subtle: #E4E4E7;
+  --bg-sidebar: #FFFFFF;
+  --bg-surface: #FFFFFF;
+  --bg-surface-hover: #F8F8F9;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-glass: rgba(255, 255, 255, 0.94);
+  --bg-topbar: rgba(244, 244, 245, 0.94);
+  --bg-input: #FFFFFF;
+  --bg-card-gradient: linear-gradient(180deg, #FFFFFF 0%, #FAFAFA 100%);
+  --brand-title-gradient: linear-gradient(120deg, #09090B 40%, #E11D48 100%);
+  --modal-overlay-bg: rgba(18, 18, 18, 0.6);
 
-  --primary: #059669;
-  --primary-hover: #047857;
-  --primary-active: #065f46;
-  --primary-light: rgba(16, 185, 129, 0.14);
-  --primary-glow: 0 0 20px rgba(16, 185, 129, 0.2);
+  --border-subtle: rgba(18, 18, 18, 0.08);
+  --border-medium: rgba(18, 18, 18, 0.16);
+  --border-active: #E11D48;
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-tertiary: #64748b;
-  --text-disabled: #94a3b8;
+  /* Primary Accent: Crimson Red (#E11D48) */
+  --primary: #E11D48;
+  --primary-hover: #be123c;
+  --primary-active: #9f1239;
+  --primary-light: rgba(225, 29, 72, 0.1);
+  --primary-glow: 0 0 20px rgba(225, 29, 72, 0.25);
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 4px 14px -2px rgba(0, 0, 0, 0.07), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 12px 28px -4px rgba(0, 0, 0, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+  /* Secondary Accents */
+  --accent-sky: #0284c7;
+  --accent-blue: #0369a1;
+  --accent-navy: #0f172a;
+
+  /* Cashier & Critical Action */
+  --color-cashout: #10B981;
+  --color-cashout-hover: #059669;
+  --color-cashout-glow: 0 0 20px rgba(16, 185, 129, 0.35);
+
+  /* Odds Live Contrast */
+  --odd-up: #16A34A;
+  --odd-down: #DC2626;
+
+  --emerald-400: #10B981;
+  --emerald-500: #059669;
+  --amber-400: #D97706;
+  --amber-500: #B45309;
+  --rose-400: #E11D48;
+  --rose-500: #BE123C;
+  --sky-400: #0284c7;
+  --sky-500: #0369a1;
+
+  /* High-Contrast Operator Typography */
+  --text-primary: #09090B;
+  --text-secondary: #3F3F46;
+  --text-tertiary: #71717A;
+  --text-disabled: #A1A1AA;
+
+  --shadow-sm: 0 1px 3px rgba(18, 18, 18, 0.05);
+  --shadow-md: 0 4px 14px -2px rgba(18, 18, 18, 0.08);
+  --shadow-lg: 0 12px 28px -4px rgba(18, 18, 18, 0.12);
 
   color-scheme: light;
 }
@@ -230,3 +285,95 @@ body {
   padding-right: 0.6rem;
   user-select: none;
 }
+
+/* ==========================================================================
+   SweetAlert2 - Estilo temático El Trébol
+   ========================================================================== */
+.trebol-swal-popup {
+  border-radius: var(--radius-md, 12px) !important;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.16)) !important;
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6) !important;
+  font-family: var(--font-sans) !important;
+  padding: 1.5rem !important;
+  background-color: var(--bg-surface, #1E1E1E) !important;
+  color: var(--text-primary, #FFFFFF) !important;
+}
+
+.trebol-swal-title {
+  color: var(--text-primary, #FFFFFF) !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.trebol-swal-content {
+  color: var(--text-secondary, #A1A1AA) !important;
+  font-size: 0.95rem !important;
+  line-height: 1.5 !important;
+}
+
+.trebol-swal-confirm-btn {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem !important;
+  padding: 0.6rem 1.4rem !important;
+  border-radius: var(--radius-sm, 8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
+  transition: all var(--transition-fast, 0.15s ease) !important;
+  margin: 0.35rem !important;
+}
+
+.trebol-swal-confirm-btn:hover {
+  background: linear-gradient(135deg, #34d399 0%, #059669 100%) !important;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5) !important;
+  transform: translateY(-1px) !important;
+}
+
+.trebol-swal-destructive-btn {
+  background: linear-gradient(135deg, #E11D48 0%, #be123c 100%) !important;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35) !important;
+}
+
+.trebol-swal-destructive-btn:hover {
+  background: linear-gradient(135deg, #fb7185 0%, #be123c 100%) !important;
+  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.55) !important;
+}
+
+.trebol-swal-cancel-btn {
+  background: var(--bg-surface-elevated, #2A2A2A) !important;
+  color: var(--text-secondary, #D4D4D8) !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem !important;
+  padding: 0.6rem 1.4rem !important;
+  border-radius: var(--radius-sm, 8px) !important;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.16)) !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast, 0.15s ease) !important;
+  margin: 0.35rem !important;
+}
+
+.trebol-swal-cancel-btn:hover {
+  background: var(--bg-surface-hover, #333333) !important;
+  color: #FFFFFF !important;
+  transform: translateY(-1px) !important;
+}
+
+.trebol-swal-input {
+  background-color: var(--bg-input, #161616) !important;
+  color: var(--text-primary, #FFFFFF) !important;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.16)) !important;
+  border-radius: var(--radius-sm, 8px) !important;
+  padding: 0.6rem 0.85rem !important;
+  font-size: 0.95rem !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.trebol-swal-input:focus {
+  border-color: var(--primary, #E11D48) !important;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.25) !important;
+}
+

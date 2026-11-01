@@ -176,7 +176,7 @@ export default function Parley() {
       <header className="page-header">
         <div>
           <h1 className="page-title">Parley deportivo</h1>
-          <p className="empty" style={{ padding: '0.25rem 0 0' }}>
+          <p style={{ color: 'var(--text-secondary)', margin: '0.35rem 0 0', fontSize: '0.88rem' }}>
             Eventos y cuotas desde la API deportiva. Horarios en tu hora local.
             {apiStatus && (
               <>
@@ -363,7 +363,7 @@ export default function Parley() {
                 <h2 className="modal-title">
                   {selectedEvent.home?.name} vs {selectedEvent.away?.name}
                 </h2>
-                <p className="empty" style={{ padding: '0.2rem 0 0' }}>
+                <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0', fontSize: '0.84rem' }}>
                   {selectedEvent.league?.name} · {formatDateTime(selectedEvent.starts_at)}
                 </p>
               </div>
@@ -383,7 +383,7 @@ export default function Parley() {
 
             {!oddsLoading && odds?.available && (
               <>
-                <p className="empty" style={{ padding: '0 0 0.75rem' }}>
+                <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.85rem', fontSize: '0.84rem' }}>
                   Casa de apuestas: <strong>{odds.bookmaker?.name}</strong>
                   {odds.updated_at && ` · Actualizado: ${formatDateTime(odds.updated_at)}`}
                 </p>

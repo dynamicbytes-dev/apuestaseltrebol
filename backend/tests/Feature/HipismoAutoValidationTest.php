@@ -145,4 +145,100 @@ class HipismoAutoValidationTest extends TestCase
         $this->assertEquals(Ticket::STATUS_PAID, $ticketWinning->fresh()->status);
         $this->assertEquals(25.00, (float) $ticketWinning->fresh()->paid_amount);
     }
+
+    public function test_winner_dividend_is_registered_when_marking_winner_and_settles_tickets_with_official_dividend(): void
+    {
+        $admin = User::factory()->create(['role' => 'administrador']);
+        $agency = Agency::create([
+            'name' => 'Agencia Hipódromo',
+            'slug' => 'agencia-hipodromo',
+        ]);
+        $supervisor = User::factory()->create([
+            'role' => 'supervisor',
+            'agency_id' => $agency->id,
+        ]);
+        $taquilla = User::factory()->create([
+            'role' => 'taquilla',
+            'agency_id' => $agency->id,
+            'supervisor_id' => $supervisor->id,
+        ]);
+
+        // Crear carrera con caballos sin dividendo inicial prefijado (0.00)
+        $race = Race::create([
+            'name' => '5ta Carrera (1ra Válida)',
+            'track' => 'La Rinconada',
+            'meeting' => 'Reunión 45',
+            'race_date' => now()->addHours(1),
+            'status' => Race::STATUS_PENDING,
+        ]);
+
+        $horse1 = Horse::create([
+            'race_id' => $race->id,
+            'number' => 1,
+            'name' => 'Catire Pedro',
+            'dividend' => 0.00,
+            'is_retired' => false,
+        ]);
+
+        $horse2 = Horse::create([
+            'race_id' => $race->id,
+            'number' => 2,
+            'name' => 'Gran Omero',
+            'dividend' => 0.00,
+            'is_retired' => false,
+        ]);
+
+        // Taquilla emite ticket apostando Bs. 20 al caballo 1 antes de la carrera
+        $ticket = Ticket::create([
+            'code' => 'TKT-HIP-777',
+            'agency_id' => $agency->id,
+            'supervisor_id' => $supervisor->id,
+            'taquilla_id' => $taquilla->id,
+            'type' => Ticket::TYPE_HIPISMO,
+            'stake' => 20.00,
+            'total_odds' => 1.00,
+            'potential_payout' => 20.00,
+            'status' => Ticket::STATUS_PENDING,
+        ]);
+
+        TicketSelection::create([
+            'ticket_id' => $ticket->id,
+            'race_id' => $race->id,
+            'horse_id' => $horse1->id,
+            'selection_label' => "N° {$horse1->number} - {$horse1->name}",
+            'odd' => 1.00,
+            'amount' => 20.00,
+        ]);
+
+        $adminToken = auth('api')->login($admin);
+        $taquillaToken = auth('api')->login($taquilla);
+
+        // Cuando la carrera finaliza, el administrador marca al caballo 1 como ganador Y registra el dividendo oficial de 4.85
+        $response = $this->withHeader('Authorization', "Bearer {$adminToken}")
+            ->putJson("/api/admin/races/{$race->id}/result", [
+                'winner_horse_id' => $horse1->id,
+                'winner_dividend' => 4.85,
+                'second_horse_id' => $horse2->id,
+                'second_dividend' => 2.10,
+            ]);
+
+        $response->assertStatus(200);
+
+        // El dividendo del caballo ganador debe haberse actualizado al oficial
+        $this->assertEquals(4.85, (float) $horse1->fresh()->dividend);
+        $this->assertEquals(2.10, (float) $horse2->fresh()->dividend);
+
+        // El ticket ganador debe haber actualizado su potencial de cobro con el dividendo oficial (20 * 4.85 = 97.00)
+        $this->assertEquals(97.00, (float) $ticket->fresh()->potential_payout);
+
+        // Taquilla ahora cobra el ticket por el monto oficial
+        $payResponse = $this->withHeader('Authorization', "Bearer {$taquillaToken}")
+            ->postJson("/api/taquilla/tickets/{$ticket->id}/pay", [
+                'paid_amount' => 97.00,
+            ]);
+
+        $payResponse->assertStatus(200);
+        $this->assertEquals(Ticket::STATUS_PAID, $ticket->fresh()->status);
+        $this->assertEquals(97.00, (float) $ticket->fresh()->paid_amount);
+    }
 }

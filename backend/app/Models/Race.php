@@ -24,6 +24,8 @@ class Race extends Model
         'winner_horse_id',
         'second_horse_id',
         'third_horse_id',
+        'is_valida',
+        'valida_number',
     ];
 
     protected $casts = [
@@ -31,6 +33,8 @@ class Race extends Model
         'winner_horse_id' => 'integer',
         'second_horse_id' => 'integer',
         'third_horse_id' => 'integer',
+        'is_valida' => 'boolean',
+        'valida_number' => 'integer',
     ];
 
     public function horses(): HasMany

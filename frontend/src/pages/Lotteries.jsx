@@ -4,6 +4,7 @@ import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
 import { defaultAnimalRows } from '../utils/animalitos';
 import { todayISO, VENEZUELA_TIMEZONE } from '../utils/parley';
+import { showConfirm } from '../utils/swal';
 
 const emptyForm = () => ({ name: '', animals: defaultAnimalRows() });
 
@@ -152,7 +153,14 @@ export default function Lotteries() {
   };
 
   const handleDeleteSorteo = async (sorteo) => {
-    if (!window.confirm(`¿Eliminar el resultado N° ${sorteo.number} - ${sorteo.animal} de ${sorteo.lottery?.name}?`)) {
+    const isConfirmed = await showConfirm({
+      title: '¿Eliminar resultado?',
+      text: `¿Eliminar el resultado N° ${sorteo.number} - ${sorteo.animal} de ${sorteo.lottery?.name}?`,
+      confirmButtonText: 'Sí, eliminar',
+      isDestructive: true,
+    });
+
+    if (!isConfirmed) {
       return;
     }
     setError(null);
@@ -261,7 +269,14 @@ export default function Lotteries() {
   };
 
   const handleDelete = async (lottery) => {
-    if (!window.confirm(`¿Eliminar la lotería "${lottery.name}" y todos sus animalitos?`)) {
+    const isConfirmed = await showConfirm({
+      title: '¿Eliminar lotería?',
+      text: `¿Eliminar la lotería "${lottery.name}" y todos sus animalitos?`,
+      confirmButtonText: 'Sí, eliminar',
+      isDestructive: true,
+    });
+
+    if (!isConfirmed) {
       return;
     }
 
@@ -342,7 +357,7 @@ export default function Lotteries() {
               <h3 className="card-title" style={{ marginTop: '1rem' }}>
                 Números y animalitos ({form.animals.length})
               </h3>
-              <p className="empty" style={{ textAlign: 'left', margin: '0.25rem 0 1rem' }}>
+              <p style={{ color: 'var(--text-secondary)', textAlign: 'left', margin: '0.25rem 0 1rem', fontSize: '0.85rem' }}>
                 Edita, agrega o elimina números según los animalitos de esta lotería.
               </p>
 

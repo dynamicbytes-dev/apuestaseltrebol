@@ -3,6 +3,7 @@ import { Calendar, Percent } from 'lucide-react';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
 import { formatAmount } from '../utils/tickets';
+import { showConfirm } from '../utils/swal';
 
 const emptyForm = { name: '' };
 
@@ -80,7 +81,14 @@ export default function Agencies() {
   };
 
   const handleDelete = async (agency) => {
-    if (!window.confirm(`¿Eliminar la agencia "${agency.name}"?`)) {
+    const isConfirmed = await showConfirm({
+      title: '¿Eliminar agencia?',
+      text: `¿Eliminar la agencia "${agency.name}"?`,
+      confirmButtonText: 'Sí, eliminar',
+      isDestructive: true,
+    });
+
+    if (!isConfirmed) {
       return;
     }
 

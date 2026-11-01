@@ -105,9 +105,10 @@ class AnalyticsService
     {
         $row = (clone $query)
             ->selectRaw('COUNT(*) as tickets')
-            ->selectRaw('COALESCE(SUM(stake), 0) as stake')
+            ->selectRaw('COALESCE(SUM(CASE WHEN status != ? THEN stake ELSE 0 END), 0) as stake', [Ticket::STATUS_CANCELLED])
             ->selectRaw('COALESCE(SUM(paid_amount), 0) as paid')
-            ->selectRaw('COALESCE(SUM(CASE WHEN status = ? THEN potential_payout ELSE 0 END), 0) as exposure', [Ticket::STATUS_PENDING])
+            ->selectRaw('COALESCE(SUM(CASE WHEN status = ? AND (settlement_status IS NULL OR settlement_status != ?) THEN potential_payout ELSE 0 END), 0) as exposure', [Ticket::STATUS_PENDING, Ticket::SETTLEMENT_LOST])
+            ->selectRaw('COALESCE(SUM(CASE WHEN status = ? THEN stake ELSE 0 END), 0) as cancelled_stake', [Ticket::STATUS_CANCELLED])
             ->selectRaw('COUNT(CASE WHEN status = ? THEN 1 END) as pending', [Ticket::STATUS_PENDING])
             ->selectRaw('COUNT(CASE WHEN status = ? THEN 1 END) as cancelled', [Ticket::STATUS_CANCELLED])
             ->selectRaw('COUNT(CASE WHEN status = ? THEN 1 END) as paid_count', [Ticket::STATUS_PAID])
@@ -122,6 +123,7 @@ class AnalyticsService
             'paid' => $paid,
             'net' => round($stake - $paid, 2),
             'exposure' => round((float) $row->exposure, 2),
+            'cancelled_stake' => round((float) $row->cancelled_stake, 2),
             'pending' => (int) $row->pending,
             'cancelled' => (int) $row->cancelled,
             'paid_count' => (int) $row->paid_count,
@@ -131,11 +133,12 @@ class AnalyticsService
     private function byType($query): array
     {
         return (clone $query)
+            ->where('status', '!=', Ticket::STATUS_CANCELLED)
             ->selectRaw('type')
             ->selectRaw('COUNT(*) as tickets')
             ->selectRaw('COALESCE(SUM(stake), 0) as stake')
             ->selectRaw('COALESCE(SUM(paid_amount), 0) as paid')
-            ->selectRaw('COALESCE(SUM(potential_payout), 0) as potential_payout')
+            ->selectRaw('COALESCE(SUM(CASE WHEN status = ? AND (settlement_status IS NULL OR settlement_status != ?) THEN potential_payout ELSE 0 END), 0) as potential_payout', [Ticket::STATUS_PENDING, Ticket::SETTLEMENT_LOST])
             ->groupBy('type')
             ->orderByDesc('tickets')
             ->get()
@@ -151,15 +154,24 @@ class AnalyticsService
 
     private function byStatus($query): array
     {
+        $statusExpr = "CASE
+            WHEN status = 'paid' THEN 'paid'
+            WHEN status = 'cancelled' THEN 'cancelled'
+            WHEN settlement_status = 'won' THEN 'won'
+            WHEN settlement_status = 'lost' THEN 'lost'
+            WHEN settlement_status = 'review' THEN 'review'
+            ELSE 'pending'
+        END";
+
         return (clone $query)
-            ->selectRaw('status')
+            ->selectRaw("{$statusExpr} as unified_status")
             ->selectRaw('COUNT(*) as tickets')
-            ->selectRaw('COALESCE(SUM(stake), 0) as stake')
-            ->groupBy('status')
+            ->selectRaw('COALESCE(SUM(CASE WHEN status != ? THEN stake ELSE 0 END), 0) as stake', [Ticket::STATUS_CANCELLED])
+            ->groupBy('unified_status')
             ->orderByDesc('tickets')
             ->get()
             ->map(fn ($row) => [
-                'status' => $row->status,
+                'status' => $row->unified_status,
                 'tickets' => (int) $row->tickets,
                 'stake' => round((float) $row->stake, 2),
             ])
@@ -169,6 +181,7 @@ class AnalyticsService
     private function daily($query): array
     {
         return (clone $query)
+            ->where('status', '!=', Ticket::STATUS_CANCELLED)
             ->selectRaw('DATE(created_at) as day')
             ->selectRaw('COUNT(*) as tickets')
             ->selectRaw('COALESCE(SUM(stake), 0) as stake')
@@ -188,7 +201,8 @@ class AnalyticsService
     private function bySettlement($query): array
     {
         return (clone $query)
-            ->where('type', Ticket::TYPE_PARLEY)
+            ->where('status', '!=', Ticket::STATUS_CANCELLED)
+            ->whereNotNull('settlement_status')
             ->selectRaw('settlement_status')
             ->selectRaw('COUNT(*) as tickets')
             ->groupBy('settlement_status')
@@ -217,7 +231,8 @@ class AnalyticsService
         $query = Ticket::query()
             ->join('users as taquillas', 'taquillas.id', '=', 'tickets.taquilla_id')
             ->whereDate('tickets.created_at', '>=', $from)
-            ->whereDate('tickets.created_at', '<=', $to);
+            ->whereDate('tickets.created_at', '<=', $to)
+            ->where('tickets.status', '!=', Ticket::STATUS_CANCELLED);
 
         if ($supervisorId !== null) {
             $query->where('tickets.supervisor_id', $supervisorId);
@@ -240,7 +255,7 @@ class AnalyticsService
                     'stake' => round((float) $row->stake, 2),
                     'paid' => round((float) $row->paid, 2),
                     'net' => round((float) $row->stake - (float) $row->paid, 2),
-                    'share_percentage' => $porcentaje,
+                    'share_percentage' => round($porcentaje, 2),
                     'share_amount' => round((float) $row->stake * $porcentaje / 100, 2),
                 ];
             })
@@ -265,7 +280,7 @@ class AnalyticsService
         return $this->byAgency($from, $to)
             ->map(fn (array $row) => [
                 ...$row,
-                'share_percentage' => $percentage * 100,
+                'share_percentage' => round($percentage * 100, 2),
                 'share_amount' => round($row['stake'] * $percentage, 2),
             ])
             ->all();
@@ -279,6 +294,7 @@ class AnalyticsService
             ->join('agencies', 'agencies.id', '=', 'tickets.agency_id')
             ->whereDate('tickets.created_at', '>=', $from)
             ->whereDate('tickets.created_at', '<=', $to)
+            ->where('tickets.status', '!=', Ticket::STATUS_CANCELLED)
             ->selectRaw('agencies.id as agency_id')
             ->selectRaw('agencies.name as agency_name')
             ->selectRaw('COUNT(tickets.id) as tickets')
@@ -294,7 +310,7 @@ class AnalyticsService
                 'stake' => round((float) $row->stake, 2),
                 'paid' => round((float) $row->paid, 2),
                 'net' => round((float) $row->stake - (float) $row->paid, 2),
-                'share_percentage' => $percentage * 100,
+                'share_percentage' => round($percentage * 100, 2),
                 'share_amount' => round((float) $row->stake * $percentage, 2),
             ])
             ->values();

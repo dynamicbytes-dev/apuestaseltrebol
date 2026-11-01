@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clover, Mail, Lock, Eye, EyeOff, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
 import { homePathForRole } from '../utils/roles';
 import ThemeToggle from '../components/ThemeToggle';
+import { MatrixBetIcon } from '../components/MatrixBetLogo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -126,33 +127,37 @@ export default function Login() {
         >
           <div
             style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '18px',
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(5, 150, 105, 0.2) 100%)',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--primary)',
-              boxShadow: '0 0 35px rgba(16, 185, 129, 0.35)',
               marginBottom: '1rem',
+              filter: 'drop-shadow(0 0 24px rgba(225, 29, 72, 0.35))',
             }}
           >
-            <Clover size={36} strokeWidth={2.5} />
+            <MatrixBetIcon size={64} />
           </div>
           <h1
             style={{
-              fontSize: '2rem',
-              fontWeight: 800,
-              letterSpacing: '-0.03em',
+              fontSize: '2.2rem',
+              fontWeight: 900,
+              letterSpacing: '-0.02em',
               margin: '0 0 0.4rem',
-              background: 'var(--brand-title-gradient)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.45rem',
             }}
           >
-            El Trébol
+            <span style={{ color: '#FFFFFF' }}>Matrix</span>
+            <span
+              style={{
+                background: 'linear-gradient(135deg, #38BDF8 0%, #E11D48 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Bet
+            </span>
           </h1>
           <p
             style={{
@@ -161,7 +166,7 @@ export default function Login() {
               margin: 0,
             }}
           >
-            Sistema Integral de Apuestas, Hipismo & Parley
+            Plataforma Integral de Apuestas, Hipismo & Parley
           </p>
         </div>
 
@@ -260,7 +265,7 @@ export default function Login() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="usuario@eltrebol.com"
+                  placeholder="usuario@matrixbet.com"
                   className="input"
                   style={{
                     paddingLeft: '42px',

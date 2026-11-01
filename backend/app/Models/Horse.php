@@ -14,6 +14,7 @@ class Horse extends Model
         'race_id',
         'number',
         'name',
+        'jockey',
         'dividend',
         'is_retired',
     ];

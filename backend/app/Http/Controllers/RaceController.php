@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Horse;
 use App\Models\Race;
+use App\Models\Ticket;
+use App\Models\TicketSelection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,20 +45,24 @@ class RaceController extends Controller
                 'track' => $data['track'] ?? null,
                 'race_date' => $data['race_date'] ?? null,
                 'status' => Race::STATUS_PENDING,
+                'is_valida' => $data['is_valida'] ?? false,
+                'valida_number' => $data['valida_number'] ?? null,
             ]);
 
             if ($request->has('horses') && is_array($request->input('horses'))) {
                 $horsesData = $request->validate([
                     'horses.*.number' => ['required', 'integer', 'min:1', 'max:99', 'distinct'],
                     'horses.*.name' => ['required', 'string', 'max:255'],
-                    'horses.*.dividend' => ['required', 'numeric', 'min:0'],
+                    'horses.*.jockey' => ['nullable', 'string', 'max:255'],
+                    'horses.*.dividend' => ['nullable', 'numeric', 'min:0'],
                 ]);
 
                 foreach ($horsesData['horses'] as $item) {
                     $race->horses()->create([
                         'number' => (int) $item['number'],
                         'name' => trim($item['name']),
-                        'dividend' => round((float) $item['dividend'], 2),
+                        'jockey' => isset($item['jockey']) && trim($item['jockey']) !== '' ? trim($item['jockey']) : null,
+                        'dividend' => isset($item['dividend']) && $item['dividend'] !== null ? round((float) $item['dividend'], 2) : 0.00,
                         'is_retired' => false,
                     ]);
                 }
@@ -92,11 +98,16 @@ class RaceController extends Controller
     {
         $data = $request->validate([
             'winner_horse_id' => ['nullable', 'integer', 'exists:horses,id'],
+            'winner_dividend' => ['nullable', 'numeric', 'min:0'],
             'second_horse_id' => ['nullable', 'integer', 'exists:horses,id'],
+            'second_dividend' => ['nullable', 'numeric', 'min:0'],
             'third_horse_id' => ['nullable', 'integer', 'exists:horses,id'],
+            'third_dividend' => ['nullable', 'numeric', 'min:0'],
         ], [
             'winner_horse_id.integer' => 'El 1er lugar (ganador) no es válido.',
+            'winner_dividend.numeric' => 'El dividendo del ganador debe ser un número válido.',
             'second_horse_id.integer' => 'El 2do lugar no es válido.',
+            'second_dividend.numeric' => 'El dividendo de 2do lugar debe ser un número válido.',
             'third_horse_id.integer' => 'El 3er lugar no es válido.',
         ]);
 
@@ -135,6 +146,41 @@ class RaceController extends Controller
 
         $winnerId = $data['winner_horse_id'] ?? null;
 
+        // Actualizar el dividendo oficial del caballo ganador al registrar el resultado
+        if ($winnerId && array_key_exists('winner_dividend', $data) && $data['winner_dividend'] !== null) {
+            $winnerHorse = $horses->get($winnerId) ?? Horse::find($winnerId);
+            if ($winnerHorse) {
+                $winDividend = round((float) $data['winner_dividend'], 2);
+                $winnerHorse->update(['dividend' => $winDividend]);
+
+                // Actualizar cuotas y montos de cobro de los tickets emitidos a este ejemplar
+                if ($winDividend > 0) {
+                    $winningSelections = TicketSelection::where('race_id', $race->id)
+                        ->where('horse_id', $winnerId)
+                        ->get();
+
+                    foreach ($winningSelections as $sel) {
+                        $ticket = $sel->ticket;
+                        if ($ticket && $ticket->type === Ticket::TYPE_HIPISMO && ! in_array($ticket->status, [Ticket::STATUS_PAID, Ticket::STATUS_CANCELLED])) {
+                            $selStake = (float) ($sel->amount ?? $ticket->stake);
+                            $ticket->update([
+                                'total_odds' => $winDividend,
+                                'potential_payout' => round($selStake * $winDividend, 2),
+                            ]);
+                            $sel->update(['odd' => $winDividend]);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (! empty($data['second_horse_id']) && array_key_exists('second_dividend', $data) && $data['second_dividend'] !== null) {
+            $secondHorse = $horses->get($data['second_horse_id']) ?? Horse::find($data['second_horse_id']);
+            if ($secondHorse) {
+                $secondHorse->update(['dividend' => round((float) $data['second_dividend'], 2)]);
+            }
+        }
+
         $race->update([
             'winner_horse_id' => $winnerId,
             'second_horse_id' => $data['second_horse_id'] ?? null,
@@ -154,6 +200,43 @@ class RaceController extends Controller
         return response()->json(['message' => 'Carrera eliminada correctamente.']);
     }
 
+    public function updateMeeting(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'current_meeting' => ['required', 'string'],
+            'new_meeting' => ['required', 'string', 'max:255'],
+            'track' => ['nullable', 'string', 'max:255'],
+            'race_date' => ['nullable', 'date'],
+        ], [
+            'current_meeting.required' => 'Debes indicar la reunión actual a modificar.',
+            'new_meeting.required' => 'Debes indicar el nuevo nombre de la reunión.',
+        ]);
+
+        $query = Race::where('meeting', $data['current_meeting']);
+        $count = $query->count();
+
+        if ($count === 0) {
+            return response()->json([
+                'message' => 'No se encontraron carreras asociadas a la reunión indicada.',
+            ], 404);
+        }
+
+        $updates = ['meeting' => $data['new_meeting']];
+        if (array_key_exists('track', $data) && $data['track'] !== null && $data['track'] !== '') {
+            $updates['track'] = $data['track'];
+        }
+        if (array_key_exists('race_date', $data) && $data['race_date'] !== null && $data['race_date'] !== '') {
+            $updates['race_date'] = $data['race_date'];
+        }
+
+        $query->update($updates);
+
+        return response()->json([
+            'message' => "Se actualizaron correctamente {$count} carreras de la reunión.",
+            'updated_count' => $count,
+        ]);
+    }
+
     private function validateRace(Request $request): array
     {
         return $request->validate([
@@ -161,6 +244,8 @@ class RaceController extends Controller
             'meeting' => ['nullable', 'string', 'max:255'],
             'track' => ['nullable', 'string', 'max:255'],
             'race_date' => ['nullable', 'date'],
+            'is_valida' => ['nullable', 'boolean'],
+            'valida_number' => ['nullable', 'integer', 'min:1', 'max:6'],
         ], [
             'name.required' => 'El nombre de la carrera es obligatorio.',
             'race_date.date' => 'La fecha de la carrera no es válida.',

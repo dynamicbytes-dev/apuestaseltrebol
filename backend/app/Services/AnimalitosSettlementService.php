@@ -163,6 +163,10 @@ class AnimalitosSettlementService
             );
         }
 
+        if ((float) $ticket->potential_payout !== $payable) {
+            $ticket->update(['potential_payout' => $payable]);
+        }
+
         return $this->result(
             Ticket::SETTLEMENT_WON,
             $payable,

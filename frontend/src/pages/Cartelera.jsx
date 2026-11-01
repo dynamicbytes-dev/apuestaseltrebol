@@ -452,23 +452,24 @@ export default function Cartelera() {
               Periodo: <strong style={{ color: 'var(--text-primary)' }}>{data.period.from} → {data.period.to}</strong>
             </span>
             <span style={{ color: 'var(--text-secondary)' }}>
-              Parley: <strong style={{ color: '#34d399' }}>{counts.parley ?? 0}</strong>
+              Parley: <strong style={{ color: 'var(--palette-cashout)' }}>{counts.parley ?? 0}</strong>
             </span>
             <span style={{ color: 'var(--text-secondary)' }}>
-              Hipismo: <strong style={{ color: '#38bdf8' }}>{counts.hipismo ?? 0}</strong>
+              Hipismo: <strong style={{ color: 'var(--accent-sky)' }}>{counts.hipismo ?? 0}</strong>
             </span>
             <span style={{ color: 'var(--text-secondary)' }}>
-              Animalitos: <strong style={{ color: '#a78bfa' }}>{counts.animalitos ?? 0}</strong>
+              Animalitos: <strong style={{ color: 'var(--primary)' }}>{counts.animalitos ?? 0}</strong>
             </span>
             {effectiveType && (
               <span
                 style={{
                   background: 'rgba(56, 189, 248, 0.12)',
-                  border: '1px solid #38bdf8',
-                  color: '#7dd3fc',
+                  border: '1px solid var(--accent-sky)',
+                  color: 'var(--accent-sky)',
                   padding: '0.15rem 0.55rem',
                   borderRadius: '12px',
                   fontSize: '0.78rem',
+                  fontWeight: 600,
                 }}
               >
                 {TIPOS.find((t) => t.key === effectiveType)?.label ?? effectiveType}
@@ -571,7 +572,7 @@ export default function Cartelera() {
                         <td><strong>{race.name}</strong></td>
                         <td style={{ color: 'var(--text-secondary)' }}>{race.meeting ?? '—'}</td>
                         <td style={{ color: 'var(--text-secondary)' }}>{race.track ?? '—'}</td>
-                        <td style={{ color: '#34d399', fontWeight: 600 }}>{race.winner ?? '—'}</td>
+                        <td style={{ color: 'var(--emerald-500)', fontWeight: 600 }}>{race.winner ?? '—'}</td>
                         <td style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
                           {race.horses.length} ejemplares
                         </td>

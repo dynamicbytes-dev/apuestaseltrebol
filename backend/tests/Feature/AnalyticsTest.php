@@ -205,4 +205,98 @@ class AnalyticsTest extends TestCase
         $this->assertEquals(1, $response->json('data.totals.tickets'));
         $this->assertEquals(now()->toDateString(), $response->json('data.period.from'));
     }
+
+    public function test_analiticas_excluye_tickets_cancelados_de_stake_y_comisiones(): void
+    {
+        // 1 ticket activo (100)
+        $this->ticket(['stake' => 100, 'status' => Ticket::STATUS_PENDING]);
+
+        // 1 ticket cancelado (200)
+        $this->ticket([
+            'stake' => 200,
+            'status' => Ticket::STATUS_CANCELLED,
+            'potential_payout' => 6000.00,
+        ]);
+
+        $token = auth('api')->login(User::factory()->create(['role' => 'administrador']));
+
+        $response = $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/admin/analytics');
+
+        $response->assertStatus(200);
+
+        $totals = $response->json('data.totals');
+        // Total tickets count is 2, but stake must only be 100 (excluding 200 of cancelled)
+        $this->assertEquals(2, $totals['tickets']);
+        $this->assertEquals(100.00, $totals['stake']);
+        $this->assertEquals(200.00, $totals['cancelled_stake']);
+
+        // Agency sales must also only reflect active tickets
+        $agency = collect($response->json('data.by_agency'))->firstWhere('agency_name', 'Agencia Centro');
+        $this->assertNotNull($agency);
+        $this->assertEquals(100.00, $agency['stake']);
+        $this->assertEquals(1.50, $agency['share_amount']); // 1.5% of 100
+    }
+
+    public function test_exposicion_no_incluye_tickets_perdidos(): void
+    {
+        // Ticket pendiente en juego (potencial payout 3000)
+        $this->ticket([
+            'stake' => 100,
+            'potential_payout' => 3000.00,
+            'status' => Ticket::STATUS_PENDING,
+            'settlement_status' => Ticket::SETTLEMENT_PENDING,
+        ]);
+
+        // Ticket pendiente que ya perdió (potencial payout 5000, pero liquidado como lost)
+        $this->ticket([
+            'stake' => 100,
+            'potential_payout' => 5000.00,
+            'status' => Ticket::STATUS_PENDING,
+            'settlement_status' => Ticket::SETTLEMENT_LOST,
+        ]);
+
+        $token = auth('api')->login($this->supervisor);
+
+        $response = $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/supervisor/analytics');
+
+        $response->assertStatus(200);
+
+        // La exposición debe ser sólo los 3000 del ticket no perdido
+        $this->assertEquals(3000.00, $response->json('data.totals.exposure'));
+    }
+
+    public function test_by_status_desglosa_tickets_ganadores_y_perdedores(): void
+    {
+        // 1 ganado pero no pagado
+        $this->ticket([
+            'status' => Ticket::STATUS_PENDING,
+            'settlement_status' => Ticket::SETTLEMENT_WON,
+        ]);
+
+        // 1 perdido
+        $this->ticket([
+            'status' => Ticket::STATUS_PENDING,
+            'settlement_status' => Ticket::SETTLEMENT_LOST,
+        ]);
+
+        // 1 cancelado
+        $this->ticket([
+            'status' => Ticket::STATUS_CANCELLED,
+        ]);
+
+        $token = auth('api')->login($this->supervisor);
+
+        $response = $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/supervisor/analytics');
+
+        $response->assertStatus(200);
+
+        $byStatus = collect($response->json('data.by_status'));
+
+        $this->assertEquals(1, $byStatus->firstWhere('status', 'won')['tickets']);
+        $this->assertEquals(1, $byStatus->firstWhere('status', 'lost')['tickets']);
+        $this->assertEquals(1, $byStatus->firstWhere('status', 'cancelled')['tickets']);
+    }
 }

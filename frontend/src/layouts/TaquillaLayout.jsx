@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Clover,
   LayoutDashboard,
   PlusCircle,
   Receipt,
@@ -15,14 +14,15 @@ import {
 import ThemeToggle from '../components/ThemeToggle';
 import SessionTimer from '../components/SessionTimer';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { MatrixBetIcon } from '../components/MatrixBetLogo';
 import api from '../api/client';
 import '../styles/admin.css';
 
 const navItems = [
   { to: '/taquilla', label: 'Inicio', icon: LayoutDashboard, end: true },
-  { to: '/cartelera', label: 'Cartelera de Resultados', icon: CalendarDays },
+  { to: '/cartelera', label: 'Cartelera', icon: CalendarDays },
   { to: '/taquilla/nueva', label: 'Nueva Apuesta', icon: PlusCircle },
-  { to: '/taquilla/tickets', label: 'Consultar & Pagar Tickets', icon: Receipt },
+  { to: '/taquilla/tickets', label: 'Consultar & Pagar', icon: Receipt },
 ];
 
 export default function TaquillaLayout() {
@@ -61,7 +61,6 @@ export default function TaquillaLayout() {
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      localStorage.removeItem('sessionExpiresAt');
       navigate('/login');
     }
   };
@@ -76,92 +75,115 @@ export default function TaquillaLayout() {
   };
 
   return (
-    <div className="admin-layout">
+    <div className="studio-shell">
       {mobileMenuOpen && (
         <div
-          className="modal-overlay"
-          style={{ zIndex: 45, padding: 0 }}
+          className="studio-mobile-backdrop"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
-      <aside className={`admin-sidebar ${mobileMenuOpen ? 'is-open' : ''}`}>
-        <div className="admin-brand-wrapper">
-          <div className="brand-icon-box">
-            <Clover size={24} strokeWidth={2.5} />
+      {/* Floating Island Command Navigation */}
+      <div className="studio-dock-wrapper">
+        <header className="studio-dock">
+          {/* Brand Emblem */}
+          <div className="dock-brand">
+            <div className="dock-logo" style={{ background: 'transparent', padding: 0, border: 'none' }}>
+              <MatrixBetIcon size={26} />
+            </div>
+            <div className="dock-brand-text">
+              <span className="dock-title">Matrix Bet</span>
+              <span className="dock-tag">POS TAQUILLA</span>
+            </div>
           </div>
-          <div className="brand-text-group">
-            <h1 className="admin-brand">El Trébol</h1>
-            <span className="brand-subtitle">Terminal Taquilla</span>
-          </div>
-        </div>
 
-        <div className="admin-user-card">
-          <div className="admin-avatar">{getInitials(user.name)}</div>
-          <div className="admin-user-info">
-            <p className="admin-user-name">{user.name ?? 'Taquilla'}</p>
-            <span className="admin-role-badge">{user.agency?.name ?? 'Punto de venta'}</span>
-          </div>
-        </div>
+          {/* Desktop Capsule Navigation */}
+          <nav className="dock-nav-capsule">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) => `dock-pill ${isActive ? 'is-active' : ''}`}
+                >
+                  <Icon size={15} strokeWidth={2.2} />
+                  <span className="dock-pill-text">{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
 
-        <nav className="admin-nav">
-          <span className="nav-section-title">Terminal de Ventas</span>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink key={item.to} to={item.to} end={item.end}>
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          })}
-        </nav>
+          {/* Utility Cluster */}
+          <div className="dock-utilities">
+            <div className="dock-chip dock-chip-live">
+              <span className="dock-pulse-dot" />
+              <span className="dock-clock-mono">{currentTime}</span>
+            </div>
 
-        <div className="sidebar-footer">
-          <button type="button" className="admin-logout" onClick={handleLogout}>
-            <LogOut size={16} />
-            <span>Cerrar sesión</span>
-          </button>
-        </div>
-      </aside>
+            <div className="dock-chip" style={{ color: 'var(--palette-orange)' }}>
+              <Store size={13} />
+              <span>{user.agency?.name ?? 'Agencia'}</span>
+            </div>
 
-      <div className="admin-main-container">
-        <header className="admin-topbar">
-          <div className="topbar-left">
+            <SessionTimer />
+            <ThemeToggle />
+
+            <div className="dock-user-cluster">
+              <div className="dock-avatar">{getInitials(user.name)}</div>
+              <div className="dock-user-meta">
+                <span className="dock-user-name">{user.name ?? 'Taquilla'}</span>
+              </div>
+              <button
+                type="button"
+                className="dock-logout-action"
+                onClick={handleLogout}
+                title="Cerrar sesión"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+
             <button
               type="button"
-              className="topbar-mobile-toggle"
+              className="dock-mobile-toggle"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Abrir menú"
             >
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
-            <div className="topbar-context-badge">
-              <Store size={14} color="#34d399" />
-              <span>Taquilla Activa: {user.agency?.name ?? 'Principal'}</span>
-            </div>
-          </div>
-
-          <div className="topbar-right">
-            <ThemeToggle />
-            <SessionTimer />
-            <div className="topbar-context-badge" style={{ fontFamily: 'var(--font-mono)' }}>
-              <Clock size={14} />
-              <span>{currentTime}</span>
-            </div>
-            <div className="topbar-live-status">
-              <span className="live-pulse-dot" />
-              <span>Venta Habilitada</span>
-            </div>
           </div>
         </header>
 
-        <main className="admin-main">
-          <ErrorBoundary key={location.pathname}>
-            <Outlet />
-          </ErrorBoundary>
-        </main>
+        {mobileMenuOpen && (
+          <div className="studio-mobile-island">
+            <nav className="mobile-nav-grid">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) => `mobile-dock-pill ${isActive ? 'is-active' : ''}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Icon size={18} strokeWidth={2.2} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+        )}
       </div>
+
+      <main className="studio-canvas">
+        <ErrorBoundary key={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
+      </main>
     </div>
   );
 }

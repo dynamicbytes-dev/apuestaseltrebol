@@ -17,8 +17,11 @@ import {
 import api from '../api/client';
 import { printTicket } from '../utils/print';
 import { getErrorMessage } from '../utils/errors';
+import { showConfirm } from '../utils/swal';
+import { MatrixBetIcon } from '../components/MatrixBetLogo';
 import {
   TICKET_TYPE_LABELS,
+  HORSE_BET_TYPE_LABELS,
   MOVEMENT_LABELS,
   ticketSingleStatus,
   settlementStatusLabel,
@@ -132,7 +135,14 @@ export default function TaquillaTickets() {
     }
 
     const amount = Number(settlement?.payable ?? ticket.potential_payout);
-    if (!window.confirm(`¿Confirmar pago del ticket ${ticket.code} por ${formatAmount(amount)}?`)) {
+    const isConfirmed = await showConfirm({
+      title: '¿Confirmar Pago de Ticket?',
+      text: `¿Confirmar pago del ticket ${ticket.code} por ${formatAmount(amount)}?`,
+      confirmButtonText: 'Sí, Pagar',
+      icon: 'question',
+    });
+
+    if (!isConfirmed) {
       return;
     }
 
@@ -170,7 +180,15 @@ export default function TaquillaTickets() {
       return;
     }
 
-    if (!window.confirm(`¿Estás seguro de anular el ticket ${ticket.code}? Esta acción es irreversible.`)) {
+    const isConfirmed = await showConfirm({
+      title: '¿Anular Ticket?',
+      text: `¿Estás seguro de anular el ticket ${ticket.code}? Esta acción es irreversible.`,
+      confirmButtonText: 'Sí, Anular',
+      isDestructive: true,
+      icon: 'warning',
+    });
+
+    if (!isConfirmed) {
       return;
     }
 
@@ -375,14 +393,14 @@ export default function TaquillaTickets() {
                               {canPayTicket(t) ? (
                                 <button
                                   type="button"
-                                  className="btn btn-primary btn-sm"
+                                  className="btn-cashout"
                                   onClick={() => handlePay(t)}
                                   disabled={isProcessing}
                                   title="Pagar premio"
-                                  style={{ background: '#059669', borderColor: '#059669' }}
+                                  style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem' }}
                                 >
                                   <DollarSign size={14} />
-                                  <span>{isProcessing ? 'Validando...' : 'Pagar'}</span>
+                                  <span>{isProcessing ? 'Validando...' : 'Cobrar / Pagar'}</span>
                                 </button>
                               ) : (
                                 <button
@@ -496,8 +514,11 @@ export default function TaquillaTickets() {
               }}
             >
               <div style={{ textAlign: 'center', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
+                <div data-print="hide" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.45rem' }}>
+                  <MatrixBetIcon size={34} />
+                </div>
                 <strong style={{ fontSize: '1.2rem', display: 'block', color: 'var(--text-primary)', letterSpacing: '1px' }}>
-                  EL TRÉBOL
+                  MATRIX BET
                 </strong>
                 <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
                   Agencia: {selectedTicket.agency?.name || user.agency?.name || 'Agencia Oficial'}
@@ -516,9 +537,20 @@ export default function TaquillaTickets() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Modalidad:</span>
                 <strong style={{ color: 'var(--text-primary)' }}>
-                  {TICKET_TYPE_LABELS[selectedTicket.type] ?? selectedTicket.type}
+                  {selectedTicket.horse_racing_bet?.bet_type
+                    ? `Hipismo (${HORSE_BET_TYPE_LABELS[selectedTicket.horse_racing_bet.bet_type] || selectedTicket.horse_racing_bet.bet_type})`
+                    : (TICKET_TYPE_LABELS[selectedTicket.type] ?? selectedTicket.type)}
                 </strong>
               </div>
+
+              {selectedTicket.horse_racing_bet?.combinations_count > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Combinaciones:</span>
+                  <strong style={{ color: '#f59e0b' }}>
+                    {selectedTicket.horse_racing_bet.combinations_count} cuadros
+                  </strong>
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Estado:</span>
@@ -699,13 +731,19 @@ export default function TaquillaTickets() {
                   </strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Premio a Pagar:</span>
-                  <strong style={{ fontSize: '1.1rem', color: '#34d399' }}>
-                    {formatAmount(selectedTicket.potential_payout)}
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    {selectedTicket.status === 'paid'
+                      ? 'Monto Pagado:'
+                      : selectedTicket.settlement_status === 'won'
+                      ? 'Premio a Cobrar:'
+                      : 'Premio Potencial:'}
+                  </span>
+                  <strong style={{ fontSize: '1.1rem', color: 'var(--palette-cashout)' }}>
+                    {formatAmount(selectedTicket.paid_amount || settlement?.payable || selectedTicket.potential_payout)}
                   </strong>
                 </div>
                 {selectedTicket.paid_at && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#86efac', marginTop: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                     <span>Pagado en fecha:</span>
                     <span>{formatTicketDate(selectedTicket.paid_at)}</span>
                   </div>
@@ -771,12 +809,11 @@ export default function TaquillaTickets() {
                     {settlement?.status === 'won' || (!settlement && canPayTicket(selectedTicket)) ? (
                       <button
                         type="button"
-                        className="btn btn-primary btn-sm"
+                        className="btn-cashout"
                         onClick={() => handlePay(selectedTicket)}
-                        style={{ background: '#059669', borderColor: '#059669' }}
                       >
                         <DollarSign size={16} />
-                        <span>Validar y Pagar</span>
+                        <span>Validar y Cobrar</span>
                       </button>
                     ) : (
                       <span

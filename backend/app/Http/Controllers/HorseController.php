@@ -93,14 +93,14 @@ class HorseController extends Controller
         return $request->validate([
             'number' => ['required', 'integer', 'min:1', 'max:99', $uniqueNumber],
             'name' => ['required', 'string', 'max:255'],
-            'dividend' => ['required', 'numeric', 'min:0'],
+            'jockey' => ['nullable', 'string', 'max:255'],
+            'dividend' => ['nullable', 'numeric', 'min:0'],
             'is_retired' => ['sometimes', 'boolean'],
         ], [
             'number.required' => 'El número del caballo es obligatorio.',
             'number.unique' => 'Ese número ya está asignado a otro caballo de la carrera.',
             'number.min' => 'El número del caballo debe ser mayor que cero.',
             'name.required' => 'El nombre del caballo es obligatorio.',
-            'dividend.required' => 'El dividendo es obligatorio.',
             'dividend.numeric' => 'El dividendo debe ser un número.',
             'dividend.min' => 'El dividendo no puede ser negativo.',
         ]);

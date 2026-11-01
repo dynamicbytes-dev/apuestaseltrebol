@@ -3,6 +3,7 @@ import { Calendar, Percent } from 'lucide-react';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
 import { formatAmount } from '../utils/tickets';
+import { showConfirm } from '../utils/swal';
 
 const emptyForm = { name: '', email: '', password: '', commission_percentage: '13' };
 
@@ -98,7 +99,14 @@ export default function Taquillas() {
   };
 
   const handleDelete = async (taquilla) => {
-    if (!window.confirm(`¿Eliminar la taquilla "${taquilla.name}"?`)) {
+    const isConfirmed = await showConfirm({
+      title: '¿Eliminar taquilla?',
+      text: `¿Eliminar la taquilla "${taquilla.name}"?`,
+      confirmButtonText: 'Sí, eliminar',
+      isDestructive: true,
+    });
+
+    if (!isConfirmed) {
       return;
     }
 

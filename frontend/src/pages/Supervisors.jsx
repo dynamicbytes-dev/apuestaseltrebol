@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
+import { showConfirm } from '../utils/swal';
 
 const emptyForm = { name: '', email: '', password: '', agency_id: '' };
 
@@ -89,7 +90,14 @@ export default function Supervisors() {
   };
 
   const handleDelete = async (supervisor) => {
-    if (!window.confirm(`¿Eliminar al supervisor "${supervisor.name}"?`)) {
+    const isConfirmed = await showConfirm({
+      title: '¿Eliminar supervisor?',
+      text: `¿Eliminar al supervisor "${supervisor.name}"?`,
+      confirmButtonText: 'Sí, eliminar',
+      isDestructive: true,
+    });
+
+    if (!isConfirmed) {
       return;
     }
 

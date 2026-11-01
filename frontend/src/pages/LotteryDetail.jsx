@@ -138,7 +138,7 @@ export default function LotteryDetail() {
     <div>
       <header className="page-header">
         <div>
-          <Link to="/lotteries" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.85rem' }}>
+          <Link to="/lotteries" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.85rem' }}>
             ← Volver a Loterías
           </Link>
           <h1 className="page-title" style={{ marginTop: '0.35rem' }}>
@@ -194,12 +194,13 @@ export default function LotteryDetail() {
                   alignItems: 'center',
                   gap: '0.35rem',
                   background: 'rgba(56, 189, 248, 0.12)',
-                  border: '1px solid #38bdf8',
-                  color: '#7dd3fc',
+                  border: '1px solid var(--accent-sky)',
+                  color: 'var(--accent-sky)',
                   padding: '0.2rem 0.35rem 0.2rem 0.6rem',
                   borderRadius: '12px',
                   fontFamily: 'var(--font-mono)',
                   fontSize: '0.82rem',
+                  fontWeight: 600,
                 }}
               >
                 {hora}

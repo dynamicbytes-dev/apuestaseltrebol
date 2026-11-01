@@ -6,6 +6,16 @@ export const TICKET_TYPE_LABELS = {
   parley: 'Parley',
 };
 
+export const HORSE_BET_TYPE_LABELS = {
+  ganador: 'Ganador',
+  place: 'Place',
+  exacta: 'Exacta',
+  trifecta: 'Trifecta',
+  pool_de_4: 'Pool de 4',
+  pool_de_5: 'Pool de 5',
+  cinco_y_seis: 'Cuadro 5 y 6',
+};
+
 export const TICKET_STATUS_LABELS = {
   pending: 'Pendiente',
   paid: 'Pagado',

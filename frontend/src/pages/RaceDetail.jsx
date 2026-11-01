@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../api/client';
 import { getErrorMessage } from '../utils/errors';
+import { showConfirm, showPrompt } from '../utils/swal';
 
-const emptyHorseForm = { number: '', name: '', dividend: '' };
+const emptyHorseForm = { number: '', name: '', jockey: '', dividend: '' };
 
 function formatRaceDate(value) {
   if (!value) return '—';
@@ -17,7 +18,14 @@ function formatRaceDate(value) {
 export default function RaceDetail() {
   const { raceId } = useParams();
   const [race, setRace] = useState(null);
-  const [raceForm, setRaceForm] = useState({ name: '', meeting: '', track: '', race_date: '' });
+  const [raceForm, setRaceForm] = useState({
+    name: '',
+    meeting: '',
+    track: '',
+    race_date: '',
+    is_valida: false,
+    valida_number: '',
+  });
   const [horseForm, setHorseForm] = useState(emptyHorseForm);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(emptyHorseForm);
@@ -34,6 +42,8 @@ export default function RaceDetail() {
       meeting: data.meeting ?? '',
       track: data.track ?? '',
       race_date: data.race_date ?? '',
+      is_valida: Boolean(data.is_valida),
+      valida_number: data.valida_number !== null && data.valida_number !== undefined ? String(data.valida_number) : '',
     });
   };
 
@@ -65,6 +75,8 @@ export default function RaceDetail() {
         meeting: raceForm.meeting || null,
         track: raceForm.track || null,
         race_date: raceForm.race_date || null,
+        is_valida: Boolean(raceForm.is_valida),
+        valida_number: raceForm.is_valida && raceForm.valida_number ? Number(raceForm.valida_number) : null,
       });
 
       applyRace(response.data.data);
@@ -86,7 +98,8 @@ export default function RaceDetail() {
       await api.post(`/admin/races/${raceId}/horses`, {
         number: Number(horseForm.number),
         name: horseForm.name,
-        dividend: Number(horseForm.dividend),
+        jockey: horseForm.jockey && horseForm.jockey.trim() ? horseForm.jockey.trim() : null,
+        dividend: horseForm.dividend && !isNaN(Number(horseForm.dividend)) ? Number(horseForm.dividend) : 0,
       });
 
       setHorseForm(emptyHorseForm);
@@ -104,6 +117,7 @@ export default function RaceDetail() {
     setEditForm({
       number: String(horse.number),
       name: horse.name,
+      jockey: horse.jockey || '',
       dividend: horse.dividend,
     });
     setError(null);
@@ -119,6 +133,7 @@ export default function RaceDetail() {
       await api.put(`/admin/races/${raceId}/horses/${horseId}`, {
         number: Number(editForm.number),
         name: editForm.name,
+        jockey: editForm.jockey && editForm.jockey.trim() ? editForm.jockey.trim() : null,
         dividend: Number(editForm.dividend),
       });
 
@@ -133,7 +148,14 @@ export default function RaceDetail() {
   };
 
   const handleDeleteHorse = async (horse) => {
-    if (!window.confirm(`¿Eliminar el caballo "${horse.name}"?`)) {
+    const isConfirmed = await showConfirm({
+      title: '¿Eliminar caballo?',
+      text: `¿Eliminar el caballo "${horse.name}"?`,
+      confirmButtonText: 'Sí, eliminar',
+      isDestructive: true,
+    });
+
+    if (!isConfirmed) {
       return;
     }
 
@@ -175,12 +197,31 @@ export default function RaceDetail() {
       return;
     }
 
+    const dividendInput = await showPrompt({
+      title: 'Dividendo Oficial',
+      text: `Ingresa el Dividendo Oficial que paga a ganador el ejemplar N° ${horse.number} (${horse.name}):`,
+      inputValue: horse.dividend && Number(horse.dividend) > 0 ? String(horse.dividend) : '2.50',
+      inputPlaceholder: 'Ej: 2.50',
+      confirmButtonText: 'Establecer Ganador',
+      cancelButtonText: 'Cancelar',
+    });
+
+    if (dividendInput === null) return;
+    const parsedDiv = parseFloat(dividendInput.replace(',', '.'));
+    if (isNaN(parsedDiv) || parsedDiv < 0) {
+      setError('Debes ingresar un número válido y positivo para el dividendo oficial.');
+      return;
+    }
+
     setError(null);
     setSuccess(null);
 
     try {
-      await api.put(`/admin/races/${raceId}/result`, { winner_horse_id: horse.id });
-      setSuccess(`Ganador registrado: N° ${horse.number} - ${horse.name}.`);
+      await api.put(`/admin/races/${raceId}/result`, {
+        winner_horse_id: horse.id,
+        winner_dividend: parsedDiv,
+      });
+      setSuccess(`Ganador registrado: N° ${horse.number} - ${horse.name} (Dividendo: Bs. ${parsedDiv.toFixed(2)}).`);
       await loadRace();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -224,19 +265,24 @@ export default function RaceDetail() {
         <div>
           <Link
             to="/races"
-            style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.85rem' }}
+            style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.85rem' }}
           >
             ← Volver a Programación de Hipismo
           </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
             <h1 className="page-title">{race.name}</h1>
+            {race.is_valida && (
+              <span style={{ background: 'rgba(245, 158, 11, 0.18)', color: '#d97706', border: '1px solid #d97706', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 700 }}>
+                ⭐ {race.valida_number ? `${race.valida_number}ª Válida (5 y 6)` : 'Válida 5 y 6'}
+              </span>
+            )}
             {race.meeting && (
-              <span style={{ background: '#1e3a5f', color: '#93c5fd', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.85rem' }}>
-                {race.meeting}
+              <span style={{ background: 'var(--bg-canvas-subtle)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                📍 {race.meeting}
               </span>
             )}
           </div>
-          <p className="empty" style={{ padding: '0.25rem 0 0' }}>
+          <p style={{ color: 'var(--text-secondary)', margin: '0.35rem 0 0', fontSize: '0.88rem' }}>
             {race.track || 'Sin hipódromo'} · {formatRaceDate(race.race_date)}
           </p>
         </div>
@@ -265,7 +311,7 @@ export default function RaceDetail() {
           <div>
             <strong>Ganador Oficial:</strong> N° {race.winner.number} - {race.winner.name} (dividendo{' '}
             {Number(race.winner.dividend).toFixed(2)})
-            {race.second && <span style={{ marginLeft: '1rem', color: '#cbd5e1' }}>| 🥈 2° N° {race.second.number} - {race.second.name}</span>}
+            {race.second && <span style={{ marginLeft: '1rem', color: 'var(--text-secondary)' }}>| 🥈 2° N° {race.second.number} - {race.second.name}</span>}
             {race.third && <span style={{ marginLeft: '1rem', color: '#d97706' }}>| 🥉 3° N° {race.third.number} - {race.third.name}</span>}
           </div>
           <button className="btn btn-secondary btn-sm" onClick={handleClearResult}>
@@ -327,6 +373,36 @@ export default function RaceDetail() {
             />
           </div>
 
+          <div className="form-field" style={{ minWidth: '180px' }}>
+            <label htmlFor="detail-race-is-valida" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer', fontWeight: 600, color: raceForm.is_valida ? '#f59e0b' : 'inherit' }}>
+              <input
+                id="detail-race-is-valida"
+                type="checkbox"
+                checked={raceForm.is_valida}
+                onChange={(e) => setRaceForm({ ...raceForm, is_valida: e.target.checked })}
+                style={{ width: '18px', height: '18px', accentColor: '#f59e0b' }}
+              />
+              <span>⭐ Válida del 5 y 6</span>
+            </label>
+            {raceForm.is_valida && (
+              <select
+                id="detail-race-valida-number"
+                className="input input-sm"
+                style={{ marginTop: '0.4rem', borderColor: '#f59e0b' }}
+                value={raceForm.valida_number}
+                onChange={(e) => setRaceForm({ ...raceForm, valida_number: e.target.value })}
+              >
+                <option value="">-- N° de Válida --</option>
+                <option value="1">1ª Válida (5 y 6)</option>
+                <option value="2">2ª Válida (5 y 6)</option>
+                <option value="3">3ª Válida (5 y 6)</option>
+                <option value="4">4ª Válida (5 y 6)</option>
+                <option value="5">5ª Válida (5 y 6)</option>
+                <option value="6">6ª Válida (5 y 6)</option>
+              </select>
+            )}
+          </div>
+
           <button className="btn btn-primary" type="submit" disabled={saving}>
             {saving ? 'Guardando...' : 'Guardar datos'}
           </button>
@@ -370,6 +446,18 @@ export default function RaceDetail() {
             />
           </div>
 
+          <div className="form-field">
+            <label htmlFor="horse-jockey">Jinete / Jockey</label>
+            <input
+              id="horse-jockey"
+              className="input"
+              type="text"
+              value={horseForm.jockey}
+              onChange={(event) => setHorseForm({ ...horseForm, jockey: event.target.value })}
+              placeholder="Ej: R. Capriles"
+            />
+          </div>
+
           <div className="form-field" style={{ maxWidth: '160px' }}>
             <label htmlFor="horse-dividend">Dividendo fijo</label>
             <input
@@ -400,6 +488,7 @@ export default function RaceDetail() {
               <tr>
                 <th>N°</th>
                 <th>Caballo</th>
+                <th>Jinete</th>
                 <th>Dividendo fijo</th>
                 <th>Retirado</th>
                 <th>Resultado</th>
@@ -452,6 +541,23 @@ export default function RaceDetail() {
                       {isEditing ? (
                         <input
                           className="input input-sm"
+                          type="text"
+                          value={editForm.jockey}
+                          onChange={(event) =>
+                            setEditForm({ ...editForm, jockey: event.target.value })
+                          }
+                          placeholder="Jinete"
+                        />
+                      ) : horse.jockey ? (
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{horse.jockey}</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-disabled)', fontStyle: 'italic', fontSize: '0.8rem' }}>Sin jinete</span>
+                      )}
+                    </td>
+                    <td>
+                      {isEditing ? (
+                        <input
+                          className="input input-sm"
                           type="number"
                           min="0"
                           step="0.01"
@@ -479,7 +585,7 @@ export default function RaceDetail() {
                       {isWinner ? (
                         <span className="status-finished">Ganador</span>
                       ) : horse.is_retired ? (
-                        <span style={{ color: '#64748b', fontSize: '0.8rem' }}>No disponible</span>
+                        <span style={{ color: 'var(--text-disabled)', fontSize: '0.8rem' }}>No disponible</span>
                       ) : (
                         <button
                           className="btn btn-secondary btn-sm"

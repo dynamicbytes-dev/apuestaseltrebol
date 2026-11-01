@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Clover,
   LayoutDashboard,
   Building2,
   ShieldCheck,
@@ -19,17 +18,18 @@ import {
 import ThemeToggle from '../components/ThemeToggle';
 import SessionTimer from '../components/SessionTimer';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { MatrixBetIcon } from '../components/MatrixBetLogo';
 import api from '../api/client';
 import '../styles/admin.css';
 
 const navItems = [
-  { to: '/dashboard', label: 'Panel General', icon: LayoutDashboard },
-  { to: '/cartelera', label: 'Cartelera de Resultados', icon: CalendarDays },
+  { to: '/dashboard', label: 'Panel', icon: LayoutDashboard },
+  { to: '/cartelera', label: 'Cartelera', icon: CalendarDays },
   { to: '/agencies', label: 'Agencias', icon: Building2 },
   { to: '/supervisors', label: 'Supervisores', icon: ShieldCheck },
-  { to: '/lotteries', label: 'Loterías & Animalitos', icon: Ticket },
-  { to: '/races', label: 'Hipismo & Carreras', icon: Flame },
-  { to: '/parley', label: 'Parley Deportivo', icon: Gamepad2 },
+  { to: '/lotteries', label: 'Loterías', icon: Ticket },
+  { to: '/races', label: 'Hipismo', icon: Flame },
+  { to: '/parley', label: 'Parley', icon: Gamepad2 },
   { to: '/analiticas', label: 'Analíticas', icon: BarChart3 },
 ];
 
@@ -41,7 +41,6 @@ export default function AdminLayout() {
   const user = JSON.parse(localStorage.getItem('user') ?? '{}');
 
   useEffect(() => {
-    // Format Venezuela / local system time
     const updateTime = () => {
       const now = new Date();
       setCurrentTime(
@@ -58,7 +57,7 @@ export default function AdminLayout() {
     return () => clearInterval(timer);
   }, []);
 
-  // Close mobile sidebar on route transition
+  // Close mobile drawer on route transition
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
@@ -67,7 +66,7 @@ export default function AdminLayout() {
     try {
       await api.post('/auth/logout');
     } catch {
-      // Token may have expired, proceed to clear
+      // Ignore expiration
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -85,100 +84,114 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="admin-layout">
-      {/* Mobile backdrop */}
+    <div className="studio-shell">
+      {/* Mobile Drawer Overlay */}
       {mobileMenuOpen && (
         <div
-          className="modal-overlay"
-          style={{ zIndex: 45, padding: 0 }}
+          className="studio-mobile-backdrop"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
-      <aside className={`admin-sidebar ${mobileMenuOpen ? 'is-open' : ''}`}>
-        <div className="admin-brand-wrapper">
-          <div className="brand-icon-box">
-            <Clover size={24} strokeWidth={2.5} />
+      {/* Floating Island Command Navigation */}
+      <div className="studio-dock-wrapper">
+        <header className="studio-dock">
+          {/* Brand Emblem */}
+          <div className="dock-brand">
+            <div className="dock-logo" style={{ background: 'transparent', padding: 0, border: 'none' }}>
+              <MatrixBetIcon size={26} />
+            </div>
+            <div className="dock-brand-text">
+              <span className="dock-title">Matrix Bet</span>
+              <span className="dock-tag">ADMIN PRO</span>
+            </div>
           </div>
-          <div className="brand-text-group">
-            <h1 className="admin-brand">El Trébol</h1>
-            <span className="brand-subtitle">Administración 2026</span>
-          </div>
-        </div>
 
-        {/* User Card */}
-        <div className="admin-user-card">
-          <div className="admin-avatar">{getInitials(user.name)}</div>
-          <div className="admin-user-info">
-            <p className="admin-user-name">{user.name ?? 'Administrador'}</p>
-            <span className="admin-role-badge">{user.role ?? 'Admin'}</span>
-          </div>
-        </div>
+          {/* Desktop Capsule Navigation */}
+          <nav className="dock-nav-capsule">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) => `dock-pill ${isActive ? 'is-active' : ''}`}
+                >
+                  <Icon size={15} strokeWidth={2.2} />
+                  <span className="dock-pill-text">{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
 
-        {/* Navigation */}
-        <nav className="admin-nav">
-          <span className="nav-section-title">Módulos del Sistema</span>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink key={item.to} to={item.to}>
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          })}
-        </nav>
+          {/* Utility Cluster */}
+          <div className="dock-utilities">
+            {/* Live Clock Chip */}
+            <div className="dock-chip dock-chip-live">
+              <span className="dock-pulse-dot" />
+              <span className="dock-clock-mono">{currentTime}</span>
+            </div>
 
-        {/* Footer with Logout */}
-        <div className="sidebar-footer">
-          <button type="button" className="admin-logout" onClick={handleLogout}>
-            <LogOut size={16} />
-            <span>Cerrar sesión</span>
-          </button>
-        </div>
-      </aside>
+            <SessionTimer />
+            <ThemeToggle />
 
-      {/* Main Container */}
-      <div className="admin-main-container">
-        {/* Topbar */}
-        <header className="admin-topbar">
-          <div className="topbar-left">
+            {/* User Profile Pill */}
+            <div className="dock-user-cluster">
+              <div className="dock-avatar">{getInitials(user.name)}</div>
+              <div className="dock-user-meta">
+                <span className="dock-user-name">{user.name ?? 'Administrador'}</span>
+              </div>
+              <button
+                type="button"
+                className="dock-logout-action"
+                onClick={handleLogout}
+                title="Cerrar sesión"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+
+            {/* Mobile Menu Hamburger */}
             <button
               type="button"
-              className="topbar-mobile-toggle"
+              className="dock-mobile-toggle"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Abrir menú"
             >
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
-            <div className="topbar-context-badge">
-              <Sparkles size={14} color="#34d399" />
-              <span>Plataforma Operativa Central</span>
-            </div>
-          </div>
-
-          <div className="topbar-right">
-            <SessionTimer />
-            <ThemeToggle />
-            <div className="topbar-context-badge" style={{ fontFamily: 'var(--font-mono)' }}>
-              <Clock size={14} />
-              <span>{currentTime}</span>
-            </div>
-            <div className="topbar-live-status">
-              <span className="live-pulse-dot" />
-              <span>En línea</span>
-            </div>
           </div>
         </header>
 
-        {/* Routed View */}
-        <main className="admin-main">
-          <ErrorBoundary key={location.pathname}>
-            <Outlet />
-          </ErrorBoundary>
-        </main>
+        {/* Mobile Dropdown Island Menu */}
+        {mobileMenuOpen && (
+          <div className="studio-mobile-island">
+            <nav className="mobile-nav-grid">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) => `mobile-dock-pill ${isActive ? 'is-active' : ''}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Icon size={18} strokeWidth={2.2} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+        )}
       </div>
+
+      {/* Main Workspace Canvas */}
+      <main className="studio-canvas">
+        <ErrorBoundary key={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
+      </main>
     </div>
   );
 }
