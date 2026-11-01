@@ -29,6 +29,9 @@ const PRINT_STYLES = {
   fontFamily: "'Courier New', ui-monospace, SFMono-Regular, monospace",
   fontSize: '9pt',
   lineHeight: '1.35',
+  color: '#000000',
+  backgroundColor: '#ffffff',
+  WebkitTextFillColor: '#000000',
 };
 
 /**
@@ -44,6 +47,8 @@ function pxToMm(px) {
  * - Se copia el comprobante a un contenedor propio (hijo directo del body)
  *   para que el CSS pueda ocultar toda la interfaz con `display: none` sin
  *   tocar el recibo, y para que la copia no dependa del modal.
+ * - Se fuerza todo el contenido a negro puro (#000000) sobre blanco/transparente
+ *   para evitar tramados de semitonos (halftoning / puntitos) en impresoras termicas.
  * - Se mide el alto real con el ancho del papel.
  * - Chrome ignora `auto` en el alto de pagina, asi que se inyecta una regla
  *   `@page` con la medida exacta justo antes de imprimir.
@@ -68,6 +73,26 @@ export function prepareTicketForPrint() {
 
   Object.assign(comprobante.style, PRINT_STYLES);
 
+  // Forzar todo el contenido a monocromo negro puro (#000000)
+  // eliminando colores, fondos de color, sombras o degradados.
+  comprobante.querySelectorAll('*').forEach((el) => {
+    el.style.color = '#000000';
+    el.style.webkitTextFillColor = '#000000';
+    el.style.backgroundColor = 'transparent';
+    el.style.backgroundImage = 'none';
+    el.style.textShadow = 'none';
+    el.style.boxShadow = 'none';
+    el.style.filter = 'none';
+
+    if (el.style.borderColor || el.style.border) {
+      el.style.borderColor = '#000000';
+    }
+    if (el.style.borderLeftColor) el.style.borderLeftColor = '#000000';
+    if (el.style.borderRightColor) el.style.borderRightColor = '#000000';
+    if (el.style.borderTopColor) el.style.borderTopColor = '#000000';
+    if (el.style.borderBottomColor) el.style.borderBottomColor = '#000000';
+  });
+
   const raiz = document.createElement('div');
   raiz.id = PRINT_ROOT_ID;
   raiz.setAttribute('data-print-root', '');
@@ -80,7 +105,50 @@ export function prepareTicketForPrint() {
 
   const estilo = document.createElement('style');
   estilo.setAttribute('data-print-ticket', 'true');
-  estilo.textContent = `@page { size: ${TICKET_PAPER_WIDTH_MM}mm ${alto}mm; margin: 0; }`;
+  estilo.textContent = `
+    @page { size: ${TICKET_PAPER_WIDTH_MM}mm ${alto}mm; margin: 0; }
+    @media print {
+      body > *:not(#${PRINT_ROOT_ID}) { display: none !important; }
+      #${PRINT_ROOT_ID} {
+        display: block !important;
+        position: static !important;
+        left: auto !important;
+        top: auto !important;
+        width: ${TICKET_CONTENT_WIDTH_MM}mm !important;
+        max-width: ${TICKET_CONTENT_WIDTH_MM}mm !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      #${PRINT_ROOT_ID} [data-printable-ticket],
+      #${PRINT_ROOT_ID} [data-printable-ticket] *,
+      #${PRINT_ROOT_ID} [data-printable-ticket] *::before,
+      #${PRINT_ROOT_ID} [data-printable-ticket] *::after {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border-color: #000000 !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        filter: none !important;
+        -webkit-filter: none !important;
+        opacity: 1 !important;
+      }
+      #${PRINT_ROOT_ID} [data-printable-ticket] svg,
+      #${PRINT_ROOT_ID} [data-printable-ticket] svg * {
+        fill: #000000 !important;
+        stroke: #000000 !important;
+        color: #000000 !important;
+      }
+      #${PRINT_ROOT_ID} [data-printable-ticket] hr {
+        border-color: #000000 !important;
+        background: #000000 !important;
+      }
+    }
+  `.trim();
   document.head.appendChild(estilo);
 
   return function restaurar() {

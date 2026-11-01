@@ -2184,8 +2184,58 @@ select.input:focus {
 
    La altura de la pagina la fija src/utils/print.js con la medida real del
    comprobante: Chrome ignora "auto" en la altura, y asi el papel no sale con
-   una franja en blanco al final.
+/* ==========================================================================
+   Comprobante / Ticket de jugada (visualización en pantalla)
+   Diseño de recibo térmico auténtico: fondo blanco y 100% texto/bordes en negro
    ========================================================================== */
+#printable-ticket,
+[data-printable-ticket] {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+}
+
+#printable-ticket *,
+[data-printable-ticket] * {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  text-shadow: none !important;
+}
+
+#printable-ticket strong,
+#printable-ticket span,
+#printable-ticket div,
+#printable-ticket p,
+#printable-ticket h3,
+[data-printable-ticket] strong,
+[data-printable-ticket] span,
+[data-printable-ticket] div,
+[data-printable-ticket] p,
+[data-printable-ticket] h3 {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+#printable-ticket .badge,
+[data-printable-ticket] .badge {
+  background: transparent !important;
+  color: #000000 !important;
+  border: 1px solid #000000 !important;
+  font-weight: 700 !important;
+}
+
+#printable-ticket .alert,
+[data-printable-ticket] .alert {
+  background: #f4f4f5 !important;
+  color: #000000 !important;
+  border: 1px solid #000000 !important;
+}
+
+#printable-ticket svg,
+[data-printable-ticket] svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
 
 @media print {
   /* ----------------------------------------------------------------------
@@ -2247,7 +2297,8 @@ select.input:focus {
     margin: 0 auto !important;
     padding: 2mm !important;
     background: #fff !important;
-    color: #000 !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -2256,20 +2307,43 @@ select.input:focus {
     line-height: 1.35 !important;
   }
 
-  /* Las impresoras termicas no imprimen bien los fondos de color: el
-     comprobante sale en blanco y negro. */
-  #print-root [data-printable-ticket] * {
+  /* Las impresoras termicas no imprimen bien los fondos de color ni los textos de color
+     (salen con tramado de semitonos/puntitos ilegibles): el comprobante se imprime 100% en negro puro. */
+  #print-root [data-printable-ticket],
+  #print-root [data-printable-ticket] *,
+  #print-root [data-printable-ticket] *::before,
+  #print-root [data-printable-ticket] *::after {
     background: transparent !important;
-    color: #000 !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
     box-shadow: none !important;
-    border-color: #000 !important;
+    text-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    border-color: #000000 !important;
+    outline-color: #000000 !important;
+    opacity: 1 !important;
+  }
+
+  #print-root [data-printable-ticket] svg,
+  #print-root [data-printable-ticket] svg * {
+    fill: #000000 !important;
+    stroke: #000000 !important;
+    color: #000000 !important;
+  }
+
+  #print-root [data-printable-ticket] hr {
+    border-color: #000000 !important;
+    background: #000000 !important;
   }
 
   #print-root [data-printable-ticket] strong {
     font-weight: 700 !important;
   }
 
-  /* Los movimientos no caben en un recibo de papel: solo en pantalla. */
+  /* Los elementos no imprimibles no caben en un recibo de papel: solo en pantalla. */
   #print-root [data-printable-ticket] [data-print='hide'] {
     display: none !important;
   }

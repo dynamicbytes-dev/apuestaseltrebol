@@ -156,6 +156,25 @@ describe('Impresion del comprobante', () => {
     expect(reglaAlImprimir).toContain('80mm 60mm');
   });
 
+  it('fuerza todo el texto, bordes y estilos a negro puro para impresion termica', () => {
+    const ticket = comprobante();
+    const colouredElement = document.createElement('div');
+    colouredElement.style.color = 'rgb(56, 189, 248)';
+    colouredElement.style.backgroundColor = 'rgba(56, 189, 248, 0.1)';
+    colouredElement.style.borderLeft = '3px solid rgb(56, 189, 248)';
+    colouredElement.textContent = 'JUGADA';
+    ticket.appendChild(colouredElement);
+
+    printTicket();
+
+    expect(copiaAlImprimir.style.color).toBe('rgb(0, 0, 0)');
+    const elementoImpreso = copiaAlImprimir.querySelector('div:last-child');
+    expect(elementoImpreso.style.color).toBe('rgb(0, 0, 0)');
+    expect(elementoImpreso.style.backgroundColor).toBe('transparent');
+    expect(elementoImpreso.style.borderLeftColor).toBe('rgb(0, 0, 0)');
+    expect(reglaAlImprimir).toContain('color: #000000 !important');
+  });
+
   it('preparar la impresion deja la pagina lista y se puede restaurar', () => {
     comprobante();
 

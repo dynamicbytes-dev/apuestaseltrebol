@@ -505,38 +505,40 @@ export default function TaquillaTickets() {
             <div
               id="printable-ticket"
               style={{
-                background: 'var(--bg-canvas)',
+                background: '#ffffff',
+                color: '#000000',
                 padding: '1.25rem',
                 borderRadius: 'var(--radius-sm)',
-                border: '1px dashed var(--border-medium)',
+                border: '1px dashed #000000',
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.85rem',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
               }}
             >
-              <div style={{ textAlign: 'center', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
-                <div data-print="hide" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.45rem' }}>
+              <div style={{ textAlign: 'center', borderBottom: '1px dashed #000000', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
+                <div data-print="hide" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.45rem', color: '#000000' }}>
                   <MatrixBetIcon size={34} />
                 </div>
-                <strong style={{ fontSize: '1.2rem', display: 'block', color: 'var(--text-primary)', letterSpacing: '1px' }}>
+                <strong style={{ fontSize: '1.2rem', display: 'block', color: '#000000', letterSpacing: '1px' }}>
                   MATRIX BET
                 </strong>
-                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#000000', marginTop: '0.25rem' }}>
                   Agencia: {selectedTicket.agency?.name || user.agency?.name || 'Agencia Oficial'}
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: '0.78rem', color: '#000000' }}>
                   Taquilla: {selectedTicket.taquilla?.name || user.name || 'Taquilla 1'}
                 </div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--primary)', margin: '0.5rem 0', letterSpacing: '2px' }}>
+                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#000000', margin: '0.5rem 0', letterSpacing: '2px' }}>
                   N° {selectedTicket.code}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#000000', marginTop: '0.2rem' }}>
                   {formatTicketDate(selectedTicket.created_at)}
                 </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Modalidad:</span>
-                <strong style={{ color: 'var(--text-primary)' }}>
+                <span style={{ color: '#000000' }}>Modalidad:</span>
+                <strong style={{ color: '#000000' }}>
                   {selectedTicket.horse_racing_bet?.bet_type
                     ? `Hipismo (${HORSE_BET_TYPE_LABELS[selectedTicket.horse_racing_bet.bet_type] || selectedTicket.horse_racing_bet.bet_type})`
                     : (TICKET_TYPE_LABELS[selectedTicket.type] ?? selectedTicket.type)}
@@ -545,24 +547,27 @@ export default function TaquillaTickets() {
 
               {selectedTicket.horse_racing_bet?.combinations_count > 1 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Combinaciones:</span>
-                  <strong style={{ color: '#f59e0b' }}>
+                  <span style={{ color: '#000000' }}>Combinaciones:</span>
+                  <strong style={{ color: '#000000' }}>
                     {selectedTicket.horse_racing_bet.combinations_count} cuadros
                   </strong>
                 </div>
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Estado:</span>
-                <span className={ticketSingleStatus(selectedTicket).className}>
+                <span style={{ color: '#000000' }}>Estado:</span>
+                <span
+                  className={ticketSingleStatus(selectedTicket).className}
+                  style={{ color: '#000000', borderColor: '#000000', background: 'transparent' }}
+                >
                   {ticketSingleStatus(selectedTicket).label}
                 </span>
               </div>
 
               {selectedTicket.sorteo_at && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Sorteo:</span>
-                  <strong>{formatDrawTime(selectedTicket.sorteo_at)}</strong>
+                  <span style={{ color: '#000000' }}>Sorteo:</span>
+                  <strong style={{ color: '#000000' }}>{formatDrawTime(selectedTicket.sorteo_at)}</strong>
                 </div>
               )}
 
@@ -576,22 +581,25 @@ export default function TaquillaTickets() {
                     marginBottom: '0.5rem',
                   }}
                 >
-                  <span style={{ color: 'var(--text-secondary)' }}>Resultado de la jugada:</span>
-                  <span className={settlementStatusClass(selectedTicket.settlement_status)}>
+                  <span style={{ color: '#000000' }}>Resultado de la jugada:</span>
+                  <span
+                    className={settlementStatusClass(selectedTicket.settlement_status)}
+                    style={{ color: '#000000', borderColor: '#000000', background: 'transparent' }}
+                  >
                     {settlementStatusLabel(selectedTicket.settlement_status)}
                   </span>
                 </div>
               )}
 
               {selectedTicket.settlement_note && (
-                <div className="alert alert-info" style={{ marginBottom: '0.75rem', fontSize: '0.82rem' }}>
+                <div className="alert alert-info" style={{ marginBottom: '0.75rem', fontSize: '0.82rem', background: '#f8fafc', color: '#000000', border: '1px solid #000000' }}>
                   {selectedTicket.settlement_note}
                 </div>
               )}
 
               {/* Detalle de Selecciones / Jugadas */}
-              <div style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.4rem', fontWeight: 700 }}>
+              <div style={{ borderTop: '1px dashed #000000', paddingTop: '0.75rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#000000', display: 'block', marginBottom: '0.4rem', fontWeight: 700 }}>
                   JUGADAS REGISTRADAS:
                 </span>
                 {selectedTicket.selections?.map((sel, idx) => {
@@ -605,20 +613,21 @@ export default function TaquillaTickets() {
                     <div
                       key={idx}
                       style={{
-                        background: 'var(--bg-surface-hover)',
+                        background: '#f8fafc',
                         padding: '0.55rem 0.7rem',
                         borderRadius: 'var(--radius-xs)',
                         marginBottom: '0.45rem',
                         fontSize: '0.82rem',
-                        border: '1px solid var(--border-subtle)',
+                        border: '1px solid #000000',
+                        color: '#000000',
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600, marginBottom: '0.15rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#000000', fontWeight: 600, marginBottom: '0.15rem' }}>
                         <span>🏆 Liga: {league || (isHipismo ? (sel.metadata?.meeting || 'Hipismo') : (sel.metadata?.lottery || 'Lotería'))}</span>
                         {gameTime && <span>⏰ Hora: {formatTime(gameTime)}</span>}
                       </div>
                       {sel.event_name && (
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginBottom: '0.25rem' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#000000', marginBottom: '0.25rem' }}>
                           {sel.event_name}
                         </div>
                       )}
@@ -626,33 +635,34 @@ export default function TaquillaTickets() {
                         style={{
                           margin: '0.25rem 0',
                           padding: '0.35rem 0.55rem',
-                          background: 'rgba(56, 189, 248, 0.08)',
+                          background: '#ffffff',
                           borderRadius: '4px',
-                          borderLeft: '3px solid #38bdf8',
+                          border: '1px solid #000000',
+                          borderLeft: '4px solid #000000',
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
                         }}
                       >
                         <div>
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          <span style={{ fontSize: '0.72rem', color: '#000000', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             {isParley ? '⚽ Equipo Apostado:' : isHipismo ? '🏇 Ejemplar Apostado:' : '🐾 Jugada Apostada:'}
                           </span>
-                          <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                          <strong style={{ fontSize: '0.95rem', color: '#000000' }}>
                             {betTeam || sel.selection_label}
                           </strong>
                         </div>
-                        <strong style={{ color: '#34d399', fontFamily: 'var(--font-mono)', fontSize: '0.92rem' }}>
+                        <strong style={{ color: '#000000', fontFamily: 'var(--font-mono)', fontSize: '0.92rem' }}>
                           x{Number(sel.odd).toFixed(2)}
                         </strong>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#000000', marginTop: '0.2rem' }}>
                         {sel.amount !== null && sel.amount !== undefined ? (
                           <>
-                            Monto: <strong style={{ color: 'var(--text-primary)' }}>{formatAmount(sel.amount)}</strong>
+                            Monto: <strong style={{ color: '#000000' }}>{formatAmount(sel.amount)}</strong>
                           </>
                         ) : (
-                          <>Mercado: <strong style={{ color: 'var(--text-primary)' }}>{sel.market || 'Ganador'}</strong></>
+                          <>Mercado: <strong style={{ color: '#000000' }}>{sel.market || 'Ganador'}</strong></>
                         )}
                       </div>
                     </div>
@@ -662,20 +672,24 @@ export default function TaquillaTickets() {
 
               {/* Resultado de la liquidación */}
               {settlementLoading ? (
-                <p className="empty" style={{ margin: 0 }}>Validando resultado oficial...</p>
+                <p className="empty" style={{ margin: 0, color: '#000000' }}>Validando resultado oficial...</p>
               ) : settlement ? (
                 <div
                   style={{
-                    border: '1px solid var(--border-subtle)',
+                    border: '1px solid #000000',
                     borderRadius: 'var(--radius-xs)',
                     padding: '0.6rem 0.7rem',
                     marginBottom: '0.75rem',
-                    background: 'var(--bg-surface-hover)',
+                    background: '#f8fafc',
+                    color: '#000000',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Estado de la jugada:</span>
-                    <span className={settlementStatusClass(settlement.status)}>
+                    <span style={{ fontSize: '0.8rem', color: '#000000' }}>Estado de la jugada:</span>
+                    <span
+                      className={settlementStatusClass(settlement.status)}
+                      style={{ color: '#000000', borderColor: '#000000', background: 'transparent' }}
+                    >
                       {settlementStatusLabel(settlement.status)}
                     </span>
                   </div>
@@ -685,12 +699,12 @@ export default function TaquillaTickets() {
                       {settlement.legs.map((leg) => (
                         <div
                           key={leg.selection_id}
-                          style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}
+                          style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#000000' }}
                         >
-                          <span style={{ color: leg.status === 'won' ? '#34d399' : 'var(--text-tertiary)' }}>
+                          <span style={{ color: '#000000' }}>
                             {leg.status === 'won' ? '✓' : '✕'} {leg.label}
                           </span>
-                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', color: '#000000' }}>
                             {formatAmount(leg.amount)}
                             {leg.payout > 0 ? ` → ${formatAmount(leg.payout)}` : ''}
                           </span>
@@ -703,19 +717,20 @@ export default function TaquillaTickets() {
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
-                      borderTop: '1px dashed var(--border-subtle)',
+                      borderTop: '1px dashed #000000',
                       paddingTop: '0.4rem',
                       fontSize: '0.85rem',
+                      color: '#000000',
                     }}
                   >
-                    <span style={{ color: 'var(--text-secondary)' }}>Monto a pagar:</span>
-                    <strong style={{ color: '#34d399', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ color: '#000000' }}>Monto a pagar:</span>
+                    <strong style={{ color: '#000000', fontFamily: 'var(--font-mono)' }}>
                       {formatAmount(settlement.payable)}
                     </strong>
                   </div>
 
                   {settlement.note && (
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#000000', marginTop: '0.4rem' }}>
                       {settlement.note}
                     </div>
                   )}
@@ -723,27 +738,27 @@ export default function TaquillaTickets() {
               ) : null}
 
               {/* Totales */}
-              <div style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem' }}>
+              <div style={{ borderTop: '1px dashed #000000', paddingTop: '0.75rem', color: '#000000' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Monto Apostado:</span>
-                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  <span style={{ color: '#000000' }}>Monto Apostado:</span>
+                  <strong style={{ fontSize: '0.95rem', color: '#000000' }}>
                     {formatAmount(selectedTicket.stake)}
                   </strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>
+                  <span style={{ color: '#000000' }}>
                     {selectedTicket.status === 'paid'
                       ? 'Monto Pagado:'
                       : selectedTicket.settlement_status === 'won'
                       ? 'Premio a Cobrar:'
                       : 'Premio Potencial:'}
                   </span>
-                  <strong style={{ fontSize: '1.1rem', color: 'var(--palette-cashout)' }}>
+                  <strong style={{ fontSize: '1.1rem', color: '#000000' }}>
                     {formatAmount(selectedTicket.paid_amount || settlement?.payable || selectedTicket.potential_payout)}
                   </strong>
                 </div>
                 {selectedTicket.paid_at && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#000000', marginTop: '0.5rem' }}>
                     <span>Pagado en fecha:</span>
                     <span>{formatTicketDate(selectedTicket.paid_at)}</span>
                   </div>
@@ -754,15 +769,15 @@ export default function TaquillaTickets() {
                   recibo de papel de la impresora termica. */}
               <div
                 data-print="hide"
-                style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.75rem' }}
+                style={{ borderTop: '1px dashed #000000', paddingTop: '0.75rem', marginTop: '0.75rem', color: '#000000' }}
               >
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.4rem', fontWeight: 700 }}>
+                <span style={{ fontSize: '0.75rem', color: '#000000', display: 'block', marginBottom: '0.4rem', fontWeight: 700 }}>
                   MOVIMIENTOS:
                 </span>
                 {movementsLoading ? (
-                  <p className="empty" style={{ margin: 0 }}>Cargando movimientos...</p>
+                  <p className="empty" style={{ margin: 0, color: '#000000' }}>Cargando movimientos...</p>
                 ) : movements.length === 0 ? (
-                  <p className="empty" style={{ margin: 0 }}>Sin movimientos registrados.</p>
+                  <p className="empty" style={{ margin: 0, color: '#000000' }}>Sin movimientos registrados.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                     {movements.map((m) => (
@@ -774,15 +789,16 @@ export default function TaquillaTickets() {
                           gap: '0.75rem',
                           fontSize: '0.78rem',
                           padding: '0.35rem 0.5rem',
-                          background: 'var(--bg-surface-hover)',
+                          background: '#f8fafc',
                           borderRadius: 'var(--radius-xs)',
-                          border: '1px solid var(--border-subtle)',
+                          border: '1px solid #000000',
+                          color: '#000000',
                         }}
                       >
-                        <span style={{ color: 'var(--text-primary)' }}>
+                        <span style={{ color: '#000000' }}>
                           {MOVEMENT_LABELS[m.type] ?? m.type}
                         </span>
-                        <span style={{ color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+                        <span style={{ color: '#000000', whiteSpace: 'nowrap' }}>
                           {formatTicketDate(m.created_at)}
                         </span>
                       </div>

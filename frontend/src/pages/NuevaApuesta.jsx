@@ -2165,37 +2165,39 @@ export default function NuevaApuesta() {
             <div
               id="printable-ticket"
               style={{
-                background: 'var(--bg-canvas)',
+                background: '#ffffff',
+                color: '#000000',
                 padding: '1.25rem',
                 borderRadius: 'var(--radius-sm)',
-                border: '1px dashed var(--border-medium)',
+                border: '1px dashed #000000',
                 fontFamily: 'var(--font-mono)',
                 textAlign: 'center',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
               }}
             >
-              <div data-print="hide" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.45rem' }}>
+              <div data-print="hide" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.45rem', color: '#000000' }}>
                 <MatrixBetIcon size={34} />
               </div>
-              <strong style={{ fontSize: '1.2rem', display: 'block', color: 'var(--text-primary)', letterSpacing: '1px' }}>
+              <strong style={{ fontSize: '1.2rem', display: 'block', color: '#000000', letterSpacing: '1px' }}>
                 MATRIX BET
               </strong>
-              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#000000', marginTop: '0.25rem' }}>
                 Agencia: {lastCreatedTicket.agency?.name || agency?.name || user.agency?.name || 'Agencia Oficial'}
               </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: '0.78rem', color: '#000000' }}>
                 Taquilla: {lastCreatedTicket.taquilla?.name || user.name || 'Taquilla 1'}
               </div>
-              <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--primary)', margin: '0.5rem 0', letterSpacing: '2px' }}>
+              <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#000000', margin: '0.5rem 0', letterSpacing: '2px' }}>
                 N° {lastCreatedTicket.code}
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.75rem' }}>
+              <div style={{ fontSize: '0.75rem', color: '#000000', marginBottom: '0.75rem' }}>
                 {formatTicketDate(lastCreatedTicket.created_at)}
               </div>
 
-              <div style={{ textAlign: 'left', borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', fontSize: '0.85rem' }}>
+              <div style={{ textAlign: 'left', borderTop: '1px dashed #000000', paddingTop: '0.75rem', fontSize: '0.85rem', color: '#000000' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Modalidad:</span>
-                  <strong>
+                  <span style={{ color: '#000000' }}>Modalidad:</span>
+                  <strong style={{ color: '#000000' }}>
                     {lastCreatedTicket.horse_racing_bet?.bet_type
                       ? `Hipismo (${HORSE_BET_TYPE_LABELS[lastCreatedTicket.horse_racing_bet.bet_type] || lastCreatedTicket.horse_racing_bet.bet_type})`
                       : (TICKET_TYPE_LABELS[lastCreatedTicket.type] ?? lastCreatedTicket.type)}
@@ -2203,16 +2205,16 @@ export default function NuevaApuesta() {
                 </div>
                 {lastCreatedTicket.horse_racing_bet?.combinations_count > 1 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Combinaciones:</span>
-                    <strong style={{ color: '#f59e0b' }}>
+                    <span style={{ color: '#000000' }}>Combinaciones:</span>
+                    <strong style={{ color: '#000000' }}>
                       {lastCreatedTicket.horse_racing_bet.combinations_count} cuadros
                     </strong>
                   </div>
                 )}
 
                 {/* Detalle de Jugadas con Liga y Hora */}
-                <div style={{ margin: '0.75rem 0', borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.5rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.4rem', fontWeight: 700 }}>
+                <div style={{ margin: '0.75rem 0', borderTop: '1px dashed #000000', paddingTop: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#000000', display: 'block', marginBottom: '0.4rem', fontWeight: 700 }}>
                     DETALLE DE JUGADAS:
                   </span>
                   {lastCreatedTicket.selections?.map((sel, idx) => {
@@ -2226,20 +2228,21 @@ export default function NuevaApuesta() {
                       <div
                         key={idx}
                         style={{
-                          background: 'var(--bg-surface)',
+                          background: '#f8fafc',
                           padding: '0.55rem 0.7rem',
                           borderRadius: '4px',
                           marginBottom: '0.45rem',
                           fontSize: '0.82rem',
-                          border: '1px solid var(--border-subtle)',
+                          border: '1px solid #000000',
+                          color: '#000000',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600, marginBottom: '0.15rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#000000', fontWeight: 600, marginBottom: '0.15rem' }}>
                           <span>🏆 Liga: {league || (isHipismo ? (sel.metadata?.meeting || 'Hipismo') : (sel.metadata?.lottery || 'Lotería'))}</span>
                           {gameTime && <span>⏰ Hora: {formatTime(gameTime)}</span>}
                         </div>
                         {sel.event_name && (
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginBottom: '0.25rem' }}>
+                          <div style={{ fontSize: '0.8rem', color: '#000000', marginBottom: '0.25rem' }}>
                             {sel.event_name}
                           </div>
                         )}
@@ -2247,30 +2250,31 @@ export default function NuevaApuesta() {
                           style={{
                             margin: '0.25rem 0',
                             padding: '0.35rem 0.55rem',
-                            background: 'rgba(56, 189, 248, 0.08)',
+                            background: '#ffffff',
                             borderRadius: '4px',
-                            borderLeft: '3px solid #38bdf8',
+                            border: '1px solid #000000',
+                            borderLeft: '4px solid #000000',
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
                           }}
                         >
                           <div>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            <span style={{ fontSize: '0.72rem', color: '#000000', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                               {isParley ? '⚽ Equipo Apostado:' : isHipismo ? '🏇 Ejemplar Apostado:' : '🐾 Jugada Apostada:'}
                             </span>
-                            <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                            <strong style={{ fontSize: '0.95rem', color: '#000000' }}>
                               {betTeam || sel.selection_label}
                             </strong>
                           </div>
-                          <strong style={{ color: '#34d399', fontFamily: 'var(--font-mono)', fontSize: '0.92rem' }}>
+                          <strong style={{ color: '#000000', fontFamily: 'var(--font-mono)', fontSize: '0.92rem' }}>
                             x{Number(sel.odd).toFixed(2)}
                           </strong>
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#000000', marginTop: '0.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span>{sel.market || (isHipismo ? 'Ganador' : 'Apuesta')}</span>
                           {(sel.amount !== null && sel.amount !== undefined) && (
-                            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                            <span style={{ color: '#000000', fontWeight: 600 }}>
                               Monto: {formatAmount(sel.amount)}
                             </span>
                           )}
@@ -2281,19 +2285,19 @@ export default function NuevaApuesta() {
                 </div>
 
                 {lastCreatedTicket.type === 'animalitos' && lastCreatedTicket.sorteo_at && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.5rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Sorteo:</span>
-                    <strong>{formatDrawTime(lastCreatedTicket.sorteo_at)}</strong>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', borderTop: '1px dashed #000000', paddingTop: '0.5rem', color: '#000000' }}>
+                    <span style={{ color: '#000000' }}>Sorteo:</span>
+                    <strong style={{ color: '#000000' }}>{formatDrawTime(lastCreatedTicket.sorteo_at)}</strong>
                   </div>
                 )}
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.5rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Monto Apostado:</span>
-                  <strong>{formatAmount(lastCreatedTicket.stake)}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', borderTop: '1px dashed #000000', paddingTop: '0.5rem', color: '#000000' }}>
+                  <span style={{ color: '#000000' }}>Monto Apostado:</span>
+                  <strong style={{ color: '#000000' }}>{formatAmount(lastCreatedTicket.stake)}</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#34d399', fontSize: '0.95rem' }}>
-                  <span>Premio Potencial:</span>
-                  <strong>{formatAmount(lastCreatedTicket.potential_payout)}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#000000', fontSize: '0.95rem' }}>
+                  <span style={{ color: '#000000' }}>Premio Potencial:</span>
+                  <strong style={{ color: '#000000' }}>{formatAmount(lastCreatedTicket.potential_payout)}</strong>
                 </div>
               </div>
             </div>
