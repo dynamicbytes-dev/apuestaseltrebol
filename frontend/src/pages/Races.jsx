@@ -66,6 +66,7 @@ export default function Races() {
   const [form, setForm] = useState({
     track: 'La Rinconada',
     meeting: 'Reunión 42',
+    ganador_price: '100.00',
     date: todayISO(),
     time: '13:30',
     name: '1ra Carrera',
@@ -209,6 +210,7 @@ export default function Races() {
         name: form.name.trim(),
         meeting: form.meeting.trim() || null,
         track: form.track.trim() || null,
+        ganador_price: form.ganador_price ? Number(form.ganador_price) : 100.00,
         race_date: fullDateTime,
         is_valida: Boolean(form.is_valida),
         valida_number: form.is_valida && form.valida_number ? Number(form.valida_number) : null,
@@ -380,6 +382,7 @@ export default function Races() {
       name: race.name,
       meeting: race.meeting || '',
       track: race.track || 'La Rinconada',
+      ganador_price: race.ganador_price !== null && race.ganador_price !== undefined ? String(race.ganador_price) : '100.00',
       date: dateStr,
       time: timeStr,
       is_valida: Boolean(race.is_valida),
@@ -409,6 +412,7 @@ export default function Races() {
         name: editingRace.name.trim(),
         meeting: editingRace.meeting ? editingRace.meeting.trim() : null,
         track: editingRace.track ? editingRace.track.trim() : null,
+        ganador_price: editingRace.ganador_price ? Number(editingRace.ganador_price) : 100.00,
         race_date: fullDateTime,
         is_valida: Boolean(editingRace.is_valida),
         valida_number: editingRace.is_valida && editingRace.valida_number ? Number(editingRace.valida_number) : null,
@@ -430,6 +434,7 @@ export default function Races() {
       current_meeting: meetingName,
       new_meeting: meetingName,
       track: sample?.track || 'La Rinconada',
+      ganador_price: sample?.ganador_price !== null && sample?.ganador_price !== undefined ? String(sample.ganador_price) : '100.00',
     });
     setError(null);
     setSuccess(null);
@@ -451,6 +456,7 @@ export default function Races() {
         current_meeting: editingMeeting.current_meeting,
         new_meeting: editingMeeting.new_meeting.trim(),
         track: editingMeeting.track ? editingMeeting.track.trim() : null,
+        ganador_price: editingMeeting.ganador_price ? Number(editingMeeting.ganador_price) : undefined,
       });
 
       setSuccess(`✅ ${response.data.message}`);
@@ -643,6 +649,20 @@ export default function Races() {
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="Ej: 1ra Carrera"
                   required
+                />
+              </div>
+
+              <div className="form-field" style={{ maxWidth: '160px' }}>
+                <label htmlFor="race-ganador-price">Valor 1 Ganador (VES)</label>
+                <input
+                  id="race-ganador-price"
+                  className="input"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={form.ganador_price}
+                  onChange={(e) => setForm({ ...form, ganador_price: e.target.value })}
+                  placeholder="100.00"
                 />
               </div>
 
@@ -1696,6 +1716,20 @@ export default function Races() {
             )}
           </div>
 
+          <div className="form-field" style={{ marginBottom: '1rem' }}>
+            <label htmlFor="edit-race-ganador-price">Valor de 1 Ganador (VES)</label>
+            <input
+              id="edit-race-ganador-price"
+              className="input"
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={editingRace.ganador_price}
+              onChange={(e) => setEditingRace({ ...editingRace, ganador_price: e.target.value })}
+              placeholder="100.00"
+            />
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
             <button
               type="button"
@@ -1767,7 +1801,7 @@ export default function Races() {
             />
           </div>
 
-          <div className="form-field" style={{ marginBottom: '1.25rem' }}>
+          <div className="form-field" style={{ marginBottom: '0.85rem' }}>
             <label htmlFor="edit-meeting-track">Hipódromo para toda la reunión</label>
             <input
               id="edit-meeting-track"
@@ -1777,6 +1811,20 @@ export default function Races() {
               value={editingMeeting.track}
               onChange={(e) => setEditingMeeting({ ...editingMeeting, track: e.target.value })}
               placeholder="Ej: La Rinconada"
+            />
+          </div>
+
+          <div className="form-field" style={{ marginBottom: '1.25rem' }}>
+            <label htmlFor="edit-meeting-ganador-price">Valor de 1 Ganador para la reunión (VES)</label>
+            <input
+              id="edit-meeting-ganador-price"
+              className="input"
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={editingMeeting.ganador_price}
+              onChange={(e) => setEditingMeeting({ ...editingMeeting, ganador_price: e.target.value })}
+              placeholder="100.00"
             />
           </div>
 

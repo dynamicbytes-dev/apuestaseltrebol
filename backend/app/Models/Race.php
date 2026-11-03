@@ -19,6 +19,7 @@ class Race extends Model
         'name',
         'meeting',
         'track',
+        'ganador_price',
         'race_date',
         'status',
         'winner_horse_id',
@@ -30,6 +31,7 @@ class Race extends Model
 
     protected $casts = [
         'race_date' => 'datetime:Y-m-d\TH:i',
+        'ganador_price' => 'decimal:2',
         'winner_horse_id' => 'integer',
         'second_horse_id' => 'integer',
         'third_horse_id' => 'integer',

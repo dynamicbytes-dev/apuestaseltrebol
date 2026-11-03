@@ -43,6 +43,9 @@ class RaceController extends Controller
                 'name' => $data['name'],
                 'meeting' => $data['meeting'] ?? null,
                 'track' => $data['track'] ?? null,
+                'ganador_price' => isset($data['ganador_price']) && $data['ganador_price'] !== null && (float) $data['ganador_price'] > 0
+                    ? round((float) $data['ganador_price'], 2)
+                    : 100.00,
                 'race_date' => $data['race_date'] ?? null,
                 'status' => Race::STATUS_PENDING,
                 'is_valida' => $data['is_valida'] ?? false,
@@ -163,9 +166,22 @@ class RaceController extends Controller
                         $ticket = $sel->ticket;
                         if ($ticket && $ticket->type === Ticket::TYPE_HIPISMO && ! in_array($ticket->status, [Ticket::STATUS_PAID, Ticket::STATUS_CANCELLED])) {
                             $selStake = (float) ($sel->amount ?? $ticket->stake);
+                            $ganadorPrice = (float) ($race->ganador_price ?? 100.00);
+                            if ($ganadorPrice <= 0) {
+                                $ganadorPrice = 100.00;
+                            }
+
+                            // Los dividendos se multiplican por los ganadores jugados, no por el monto de la apuesta
+                            if (isset($sel->metadata['ganadores']) && (float) $sel->metadata['ganadores'] > 0) {
+                                $units = (float) $sel->metadata['ganadores'];
+                                $potentialPayout = round($units * $winDividend, 2);
+                            } else {
+                                $potentialPayout = round($selStake * $winDividend, 2);
+                            }
+
                             $ticket->update([
                                 'total_odds' => $winDividend,
-                                'potential_payout' => round($selStake * $winDividend, 2),
+                                'potential_payout' => $potentialPayout,
                             ]);
                             $sel->update(['odd' => $winDividend]);
                         }
@@ -206,10 +222,13 @@ class RaceController extends Controller
             'current_meeting' => ['required', 'string'],
             'new_meeting' => ['required', 'string', 'max:255'],
             'track' => ['nullable', 'string', 'max:255'],
+            'ganador_price' => ['nullable', 'numeric', 'min:0.01'],
             'race_date' => ['nullable', 'date'],
         ], [
             'current_meeting.required' => 'Debes indicar la reunión actual a modificar.',
             'new_meeting.required' => 'Debes indicar el nuevo nombre de la reunión.',
+            'ganador_price.numeric' => 'El monto por ganador debe ser un número válido.',
+            'ganador_price.min' => 'El monto por ganador debe ser mayor a cero.',
         ]);
 
         $query = Race::where('meeting', $data['current_meeting']);
@@ -224,6 +243,9 @@ class RaceController extends Controller
         $updates = ['meeting' => $data['new_meeting']];
         if (array_key_exists('track', $data) && $data['track'] !== null && $data['track'] !== '') {
             $updates['track'] = $data['track'];
+        }
+        if (array_key_exists('ganador_price', $data) && $data['ganador_price'] !== null && $data['ganador_price'] !== '') {
+            $updates['ganador_price'] = round((float) $data['ganador_price'], 2);
         }
         if (array_key_exists('race_date', $data) && $data['race_date'] !== null && $data['race_date'] !== '') {
             $updates['race_date'] = $data['race_date'];
@@ -243,12 +265,15 @@ class RaceController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'meeting' => ['nullable', 'string', 'max:255'],
             'track' => ['nullable', 'string', 'max:255'],
+            'ganador_price' => ['nullable', 'numeric', 'min:0.01', 'max:999999999.99'],
             'race_date' => ['nullable', 'date'],
             'is_valida' => ['nullable', 'boolean'],
             'valida_number' => ['nullable', 'integer', 'min:1', 'max:6'],
         ], [
             'name.required' => 'El nombre de la carrera es obligatorio.',
             'race_date.date' => 'La fecha de la carrera no es válida.',
+            'ganador_price.numeric' => 'El monto por ganador debe ser un número válido.',
+            'ganador_price.min' => 'El monto por ganador debe ser mayor a cero.',
         ]);
     }
 }

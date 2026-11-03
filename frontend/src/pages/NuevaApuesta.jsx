@@ -83,7 +83,7 @@ export default function NuevaApuesta() {
   const [selectedRace, setSelectedRace] = useState(null);
   const [selectedHorse, setSelectedHorse] = useState(null);
   const [hipismoSelectedHorses, setHipismoSelectedHorses] = useState({});
-  const [quickHorseAmount, setQuickHorseAmount] = useState('10');
+  const [quickHorseGanadores, setQuickHorseGanadores] = useState('1');
 
   // Parley state
   const [parleySport, setParleySport] = useState('football');
@@ -208,7 +208,7 @@ export default function NuevaApuesta() {
     setSelectedHorse(horse || null);
   };
 
-  const toggleHorseSelection = (hId, defaultAmount = '') => {
+  const toggleHorseSelection = (hId, defaultGanadores = '') => {
     setHipismoSelectedHorses((prev) => {
       const current = prev[hId];
       if (current?.selected) {
@@ -220,41 +220,41 @@ export default function NuevaApuesta() {
         ...prev,
         [hId]: {
           selected: true,
-          amount: defaultAmount || quickHorseAmount || '10',
+          ganadores: defaultGanadores || quickHorseGanadores || '1',
         },
       };
     });
   };
 
-  const updateHorseAmount = (hId, amount) => {
+  const updateHorseGanadores = (hId, ganadores) => {
     setHipismoSelectedHorses((prev) => ({
       ...prev,
       [hId]: {
         selected: true,
-        amount,
+        ganadores,
       },
     }));
   };
 
-  const applyQuickAmountToSelected = (amount) => {
-    if (!amount || Number(amount) <= 0) return;
+  const applyQuickGanadoresToSelected = (ganadores) => {
+    if (!ganadores || Number(ganadores) <= 0) return;
     setHipismoSelectedHorses((prev) => {
       const next = { ...prev };
       Object.keys(next).forEach((hid) => {
         if (next[hid]?.selected) {
-          next[hid] = { ...next[hid], amount: String(amount) };
+          next[hid] = { ...next[hid], ganadores: String(ganadores) };
         }
       });
       return next;
     });
   };
 
-  const selectAllHorsesInRace = (amount) => {
+  const selectAllHorsesInRace = (ganadores) => {
     if (!selectedRace?.horses) return;
-    const initialAmount = amount || quickHorseAmount || '10';
+    const initialGanadores = ganadores || quickHorseGanadores || '1';
     const next = {};
     selectedRace.horses.filter((h) => !h.is_retired).forEach((h) => {
-      next[h.id] = { selected: true, amount: String(initialAmount) };
+      next[h.id] = { selected: true, ganadores: String(initialGanadores) };
     });
     setHipismoSelectedHorses(next);
   };
@@ -263,26 +263,42 @@ export default function NuevaApuesta() {
     setHipismoSelectedHorses({});
   };
 
+  const hipismoGanadorPrice = useMemo(() => {
+    return Number(selectedRace?.ganador_price) || 100.00;
+  }, [selectedRace?.ganador_price]);
+
   const hipismoGanadorList = useMemo(() => {
     if (!selectedRace?.horses) return [];
     return selectedRace.horses
       .filter((h) => !h.is_retired && hipismoSelectedHorses[h.id]?.selected)
-      .map((h) => ({
-        ...h,
-        amount: hipismoSelectedHorses[h.id]?.amount ?? '',
-        numericAmount: Number(hipismoSelectedHorses[h.id]?.amount) || 0,
-      }));
-  }, [selectedRace?.horses, hipismoSelectedHorses]);
+      .map((h) => {
+        const rawGanadores = hipismoSelectedHorses[h.id]?.ganadores ?? hipismoSelectedHorses[h.id]?.amount ?? '1';
+        const numGanadores = Number(rawGanadores) || 0;
+        const totalAmount = numGanadores * hipismoGanadorPrice;
+        return {
+          ...h,
+          ganadores: rawGanadores,
+          numericGanadores: numGanadores,
+          amount: totalAmount,
+          numericAmount: totalAmount,
+        };
+      });
+  }, [selectedRace?.horses, hipismoSelectedHorses, hipismoGanadorPrice]);
 
   const hipismoGanadorTotal = useMemo(() => {
     return hipismoGanadorList.reduce((acc, h) => acc + h.numericAmount, 0);
+  }, [hipismoGanadorList]);
+
+  const hipismoGanadorTotalUnits = useMemo(() => {
+    return hipismoGanadorList.reduce((acc, h) => acc + h.numericGanadores, 0);
   }, [hipismoGanadorList]);
 
   const hipismoMaxPotentialPayout = useMemo(() => {
     if (hipismoGanadorList.length === 0) return 0;
     return hipismoGanadorList.reduce((max, h) => {
       const odd = Number(h.dividend) > 0 ? Number(h.dividend) : 1.0;
-      const pot = h.numericAmount * odd;
+      // Los dividendos se multiplican por los ganadores jugados, no por el monto de la apuesta
+      const pot = h.numericGanadores * odd;
       return pot > max ? pot : max;
     }, 0);
   }, [hipismoGanadorList]);
@@ -597,8 +613,8 @@ export default function NuevaApuesta() {
           setError('Debes seleccionar al menos un ejemplar.');
           return;
         }
-        if (hipismoGanadorList.some((h) => !(h.numericAmount > 0))) {
-          setError('Cada ejemplar seleccionado debe tener un monto jugado mayor a 0.');
+        if (hipismoGanadorList.some((h) => !(h.numericGanadores > 0))) {
+          setError('Cada ejemplar seleccionado debe tener al menos 1 ganador jugado.');
           return;
         }
         if (hipismoGanadorTotal <= 0) {
@@ -613,6 +629,7 @@ export default function NuevaApuesta() {
           race_id: Number(raceId),
           horses: hipismoGanadorList.map((h) => ({
             horse_id: Number(h.id),
+            ganadores: h.numericGanadores,
             amount: h.numericAmount,
           })),
         };
@@ -1216,14 +1233,27 @@ export default function NuevaApuesta() {
                             · {selectedRace.track || 'Hipódromo'} {selectedRace.meeting ? `(${selectedRace.meeting})` : ''}
                           </span>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span
+                            style={{
+                              fontSize: '0.82rem',
+                              fontWeight: 700,
+                              padding: '0.2rem 0.6rem',
+                              borderRadius: '4px',
+                              background: 'rgba(16, 185, 129, 0.15)',
+                              color: '#10b981',
+                              border: '1px solid rgba(16, 185, 129, 0.3)',
+                            }}
+                          >
+                            1 Ganador = {formatAmount(hipismoGanadorPrice)}
+                          </span>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
                             {selectedRace.horses?.filter((h) => !h.is_retired).length || 0} ejemplares disponibles
                           </span>
                         </div>
                       </div>
 
-                      {/* Barra de herramientas para montos rápidos */}
+                      {/* Barra de herramientas para ganadores rápidos */}
                       <div
                         style={{
                           display: 'flex',
@@ -1240,31 +1270,31 @@ export default function NuevaApuesta() {
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                            Monto rápido:
+                            Ganadores rápidos:
                           </span>
                           <input
                             type="number"
-                            min="0.01"
-                            step="0.01"
+                            min="1"
+                            step="1"
                             className="input input-sm"
-                            style={{ width: '85px', padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
-                            value={quickHorseAmount}
-                            onChange={(e) => setQuickHorseAmount(e.target.value)}
-                            placeholder="10.00"
+                            style={{ width: '70px', padding: '0.25rem 0.5rem', fontSize: '0.85rem', fontWeight: 700, textAlign: 'center' }}
+                            value={quickHorseGanadores}
+                            onChange={(e) => setQuickHorseGanadores(e.target.value)}
+                            placeholder="1"
                           />
                           <div style={{ display: 'flex', gap: '0.25rem' }}>
-                            {['5', '10', '20', '50', '100'].map((amt) => (
+                            {['1', '2', '5', '10', '20'].map((qty) => (
                               <button
-                                key={amt}
+                                key={qty}
                                 type="button"
                                 className="btn btn-secondary btn-sm"
-                                style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                                style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', fontWeight: 600 }}
                                 onClick={() => {
-                                  setQuickHorseAmount(amt);
-                                  applyQuickAmountToSelected(amt);
+                                  setQuickHorseGanadores(qty);
+                                  applyQuickGanadoresToSelected(qty);
                                 }}
                               >
-                                {amt}
+                                {qty} {qty === '1' ? 'Gdor' : 'Gdores'}
                               </button>
                             ))}
                           </div>
@@ -1272,7 +1302,7 @@ export default function NuevaApuesta() {
                             type="button"
                             className="btn btn-secondary btn-sm"
                             style={{ fontSize: '0.78rem', borderColor: 'var(--accent-sky)', color: 'var(--accent-sky)' }}
-                            onClick={() => applyQuickAmountToSelected(quickHorseAmount)}
+                            onClick={() => applyQuickGanadoresToSelected(quickHorseGanadores)}
                           >
                             Aplicar a marcados
                           </button>
@@ -1283,7 +1313,7 @@ export default function NuevaApuesta() {
                             type="button"
                             className="btn btn-secondary btn-sm"
                             style={{ fontSize: '0.75rem' }}
-                            onClick={() => selectAllHorsesInRace(quickHorseAmount)}
+                            onClick={() => selectAllHorsesInRace(quickHorseGanadores)}
                           >
                             Seleccionar Todos
                           </button>
@@ -1304,10 +1334,11 @@ export default function NuevaApuesta() {
                           ?.filter((h) => !h.is_retired)
                           ?.map((h) => {
                             const isSelected = !!hipismoSelectedHorses[h.id]?.selected;
-                            const currentAmount = hipismoSelectedHorses[h.id]?.amount ?? '';
-                            const numAmount = Number(currentAmount) || 0;
+                            const currentGanadores = hipismoSelectedHorses[h.id]?.ganadores ?? '1';
+                            const numGanadores = Number(currentGanadores) || 0;
+                            const stakeForHorse = numGanadores * hipismoGanadorPrice;
                             const dividend = Number(h.dividend) > 0 ? Number(h.dividend) : 1.0;
-                            const potWin = numAmount > 0 ? (numAmount * dividend).toFixed(2) : null;
+                            const potWin = numGanadores > 0 ? (numGanadores * dividend).toFixed(2) : null;
 
                             return (
                               <div
@@ -1385,7 +1416,7 @@ export default function NuevaApuesta() {
                                         border: '1px solid var(--border-subtle)',
                                       }}
                                     >
-                                      {Number(h.dividend) > 0 ? `x${Number(h.dividend).toFixed(2)}` : 'Div. oficial'}
+                                      {Number(h.dividend) > 0 ? `Div: Bs. ${Number(h.dividend).toFixed(2)}` : 'Div. oficial'}
                                     </span>
                                   </div>
                                 </div>
@@ -1394,55 +1425,49 @@ export default function NuevaApuesta() {
                                   style={{
                                     display: 'flex',
                                     alignItems: 'center',
+                                    justifyContent: 'space-between',
                                     gap: '0.5rem',
                                     borderTop: '1px dashed var(--border-subtle)',
                                     paddingTop: '0.5rem',
                                     marginTop: '0.25rem',
                                   }}
                                 >
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>
-                                    Monto:
-                                  </span>
-                                  <div style={{ position: 'relative', flex: 1 }}>
-                                    <span
-                                      style={{
-                                        position: 'absolute',
-                                        left: '8px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        fontSize: '0.78rem',
-                                        color: 'var(--text-tertiary)',
-                                        pointerEvents: 'none',
-                                      }}
-                                    >
-                                      Bs.
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>
+                                      Gdores:
                                     </span>
                                     <input
                                       type="number"
-                                      step="0.01"
-                                      min="0.01"
-                                      placeholder="0.00"
-                                      value={currentAmount}
+                                      step="1"
+                                      min="1"
+                                      placeholder="1"
+                                      value={currentGanadores}
                                       disabled={!isSelected}
-                                      onChange={(e) => updateHorseAmount(h.id, e.target.value)}
+                                      onChange={(e) => updateHorseGanadores(h.id, e.target.value)}
                                       onFocus={() => {
                                         if (!isSelected) toggleHorseSelection(h.id);
                                       }}
                                       className="input input-sm"
                                       style={{
-                                        paddingLeft: '28px',
-                                        height: '32px',
-                                        fontSize: '0.85rem',
+                                        width: '65px',
+                                        height: '30px',
+                                        fontSize: '0.88rem',
                                         fontWeight: 700,
+                                        textAlign: 'center',
                                         background: isSelected ? 'var(--bg-input)' : 'transparent',
                                       }}
                                     />
                                   </div>
-                                  {potWin && (
-                                    <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600, flexShrink: 0 }}>
-                                      Paga: Bs. {potWin}
+                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0 }}>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                      Monto: {formatAmount(stakeForHorse)}
                                     </span>
-                                  )}
+                                    {potWin && (
+                                      <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700 }}>
+                                        Paga: {formatAmount(potWin)}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -1464,21 +1489,23 @@ export default function NuevaApuesta() {
                           gap: '0.75rem',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                            Ejemplares seleccionados:
+                            Ejemplares: <strong style={{ color: '#38bdf8' }}>{hipismoGanadorList.length}</strong>
                           </span>
-                          <strong style={{ fontSize: '0.95rem', color: '#38bdf8' }}>
-                            {hipismoGanadorList.length}
-                          </strong>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            Total Ganadores: <strong style={{ color: '#10b981' }}>{hipismoGanadorTotalUnits}</strong>
+                          </span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                            Monto Total del Ticket:
+                            Monto Total: <strong style={{ fontSize: '1.15rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>{formatAmount(hipismoGanadorTotal)}</strong>
                           </span>
-                          <strong style={{ fontSize: '1.2rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
-                            {formatAmount(hipismoGanadorTotal)}
-                          </strong>
+                          {hipismoMaxPotentialPayout > 0 && (
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                              Premio Máx: <strong style={{ fontSize: '1.15rem', color: '#10b981', fontFamily: 'var(--font-mono)' }}>{formatAmount(hipismoMaxPotentialPayout)}</strong>
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2272,7 +2299,14 @@ export default function NuevaApuesta() {
                           </strong>
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#000000', marginTop: '0.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>{sel.market || (isHipismo ? 'Ganador' : 'Apuesta')}</span>
+                          <span>
+                            {sel.market || (isHipismo ? 'Ganador' : 'Apuesta')}
+                            {isHipismo && sel.metadata?.ganadores && (
+                              <span style={{ marginLeft: '0.35rem', fontWeight: 700 }}>
+                                ({sel.metadata.ganadores} {sel.metadata.ganadores === 1 ? 'Ganador' : 'Ganadores'})
+                              </span>
+                            )}
+                          </span>
                           {(sel.amount !== null && sel.amount !== undefined) && (
                             <span style={{ color: '#000000', fontWeight: 600 }}>
                               Monto: {formatAmount(sel.amount)}

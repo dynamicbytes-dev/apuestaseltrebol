@@ -288,7 +288,12 @@ class TicketSettlementService
             $isWinner = (int) $race->winner_horse_id === (int) $sel->horse_id;
             $effectiveOdd = $officialDividend > 0 ? $officialDividend : (float) $sel->odd;
             $selAmount = (float) ($sel->amount ?? $ticket->stake);
-            $payout = $isWinner ? round($selAmount * $effectiveOdd, 2) : 0.0;
+            if (isset($sel->metadata['ganadores']) && (float) $sel->metadata['ganadores'] > 0) {
+                $units = (float) $sel->metadata['ganadores'];
+                $payout = $isWinner ? round($units * $effectiveOdd, 2) : 0.0;
+            } else {
+                $payout = $isWinner ? round($selAmount * $effectiveOdd, 2) : 0.0;
+            }
 
             if ($isWinner) {
                 $wonAny = true;

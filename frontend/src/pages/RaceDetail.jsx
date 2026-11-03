@@ -25,6 +25,7 @@ export default function RaceDetail() {
     race_date: '',
     is_valida: false,
     valida_number: '',
+    ganador_price: '100.00',
   });
   const [horseForm, setHorseForm] = useState(emptyHorseForm);
   const [editingId, setEditingId] = useState(null);
@@ -44,6 +45,7 @@ export default function RaceDetail() {
       race_date: data.race_date ?? '',
       is_valida: Boolean(data.is_valida),
       valida_number: data.valida_number !== null && data.valida_number !== undefined ? String(data.valida_number) : '',
+      ganador_price: data.ganador_price !== null && data.ganador_price !== undefined ? String(data.ganador_price) : '100.00',
     });
   };
 
@@ -75,6 +77,7 @@ export default function RaceDetail() {
         meeting: raceForm.meeting || null,
         track: raceForm.track || null,
         race_date: raceForm.race_date || null,
+        ganador_price: raceForm.ganador_price ? Number(raceForm.ganador_price) : 100.00,
         is_valida: Boolean(raceForm.is_valida),
         valida_number: raceForm.is_valida && raceForm.valida_number ? Number(raceForm.valida_number) : null,
       });
@@ -370,6 +373,22 @@ export default function RaceDetail() {
               onChange={(event) =>
                 setRaceForm({ ...raceForm, race_date: event.target.value })
               }
+            />
+          </div>
+
+          <div className="form-field" style={{ maxWidth: '170px' }}>
+            <label htmlFor="detail-race-ganador-price">Valor 1 Ganador (VES)</label>
+            <input
+              id="detail-race-ganador-price"
+              className="input"
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={raceForm.ganador_price}
+              onChange={(event) =>
+                setRaceForm({ ...raceForm, ganador_price: event.target.value })
+              }
+              placeholder="100.00"
             />
           </div>
 

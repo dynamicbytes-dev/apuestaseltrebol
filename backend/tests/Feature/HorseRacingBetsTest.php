@@ -648,4 +648,83 @@ class HorseRacingBetsTest extends TestCase
             ]);
         $payRes->assertStatus(200);
     }
+
+    public function test_ganador_bet_multiplies_dividend_by_ganadores_played_and_calculates_stake_by_ganador_price(): void
+    {
+        $race = Race::create([
+            'name' => '1ra Carrera',
+            'meeting' => 'Reunión 55',
+            'track' => 'La Rinconada',
+            'ganador_price' => 100.00,
+            'race_date' => now()->addHours(1),
+            'status' => Race::STATUS_PENDING,
+        ]);
+
+        $horse1 = Horse::create([
+            'race_id' => $race->id,
+            'number' => 3,
+            'name' => 'Krakatoa',
+            'dividend' => 250.00,
+            'is_retired' => false,
+        ]);
+
+        $horse2 = Horse::create([
+            'race_id' => $race->id,
+            'number' => 7,
+            'name' => 'Fast Sensations',
+            'dividend' => 120.00,
+            'is_retired' => false,
+        ]);
+
+        // Jugamos 2 ganadores a Krakatoa (2 * 100 Bs = 200 Bs de apuesta)
+        $response = $this->withHeader('Authorization', "Bearer {$this->taquillaToken}")
+            ->postJson('/api/taquilla/tickets', [
+                'type' => Ticket::TYPE_HIPISMO,
+                'bet_type' => HorseRacingBet::TYPE_GANADOR,
+                'race_id' => $race->id,
+                'horses' => [
+                    ['horse_id' => $horse1->id, 'ganadores' => 2],
+                ],
+            ]);
+
+        $response->assertStatus(201);
+        $ticketId = $response->json('data.id');
+
+        $ticket = Ticket::with(['selections', 'horseRacingBet'])->find($ticketId);
+        $this->assertNotNull($ticket);
+
+        // Monto de la apuesta: 2 ganadores * 100 Bs = 200 Bs
+        $this->assertEquals(200.00, (float) $ticket->stake);
+
+        // Premio potencial: 2 ganadores * 250 dividend = 500 Bs (NUNCA 200 * 250 = 50000)
+        $this->assertEquals(500.00, (float) $ticket->potential_payout);
+
+        $sel = $ticket->selections->first();
+        $this->assertEquals(2, $sel->metadata['ganadores']);
+        $this->assertEquals(100.00, (float) $sel->metadata['ganador_price']);
+
+        // Ahora finaliza la carrera y el dividendo oficial de Krakatoa es 280.00 Bs
+        $admin = User::factory()->create(['role' => 'administrador']);
+        $adminToken = auth('api')->login($admin);
+
+        $this->withHeader('Authorization', "Bearer {$adminToken}")
+            ->putJson("/api/admin/races/{$race->id}/result", [
+                'winner_horse_id' => $horse1->id,
+                'winner_dividend' => 280.00,
+            ])
+            ->assertStatus(200);
+
+        // El ticket actualizado debe tener potential_payout = 2 * 280.00 = 560.00
+        $ticket->refresh();
+        $this->assertEquals(560.00, (float) $ticket->potential_payout);
+
+        // La liquidación debe pagar 2 ganadores * 280.00 = 560.00 Bs
+        $settleRes = $this->withHeader('Authorization', "Bearer {$this->taquillaToken}")
+            ->getJson("/api/taquilla/tickets/{$ticketId}/settlement");
+
+        $settleRes->assertStatus(200);
+        $this->assertEquals(Ticket::SETTLEMENT_WON, $settleRes->json('data.status'));
+        $this->assertEquals(560.00, (float) $settleRes->json('data.payable'));
+    }
 }
+

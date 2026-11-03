@@ -72,6 +72,7 @@ class TicketController extends Controller
                 'race_date' => $race->race_date,
                 'is_valida' => (bool) $race->is_valida,
                 'valida_number' => $race->valida_number,
+                'ganador_price' => (float) ($race->ganador_price ?? 100.00),
                 'horses' => $race->horses->map(fn ($horse) => [
                     'id' => $horse->id,
                     'number' => $horse->number,
@@ -797,14 +798,13 @@ class TicketController extends Controller
                 'race_id' => ['required', 'integer'],
                 'horses' => ['required', 'array', 'min:1'],
                 'horses.*.horse_id' => ['required', 'integer'],
-                'horses.*.amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
+                'horses.*.amount' => ['nullable', 'numeric', 'min:0.01', 'max:999999999.99'],
+                'horses.*.ganadores' => ['nullable', 'numeric', 'min:0.01', 'max:999999999.99'],
             ], [
                 'race_id.required' => 'Debe seleccionar una carrera.',
                 'horses.required' => 'Debe seleccionar al menos un ejemplar.',
                 'horses.min' => 'Debe seleccionar al menos un ejemplar.',
                 'horses.*.horse_id.required' => 'Cada selección debe especificar el ejemplar.',
-                'horses.*.amount.required' => 'Cada ejemplar debe tener un monto jugado.',
-                'horses.*.amount.min' => 'El monto de cada ejemplar debe ser mayor a 0.',
             ]);
 
             $race = Race::with(['horses' => fn ($query) => $query->orderBy('number')])
@@ -814,6 +814,11 @@ class TicketController extends Controller
                 throw ValidationException::withMessages([
                     'race_id' => 'La carrera seleccionada no está disponible para apuestas.',
                 ]);
+            }
+
+            $ganadorPrice = (float) ($race->ganador_price ?? 100.00);
+            if ($ganadorPrice <= 0) {
+                $ganadorPrice = 100.00;
             }
 
             // Evitar duplicados del mismo ejemplar en el ticket
@@ -832,7 +837,21 @@ class TicketController extends Controller
 
             foreach ($data['horses'] as $item) {
                 $horseId = (int) $item['horse_id'];
-                $horseAmount = round((float) $item['amount'], 2);
+                $ganadores = isset($item['ganadores']) && (float) $item['ganadores'] > 0
+                    ? (float) $item['ganadores']
+                    : null;
+
+                if ($ganadores !== null) {
+                    $horseAmount = round($ganadores * $ganadorPrice, 2);
+                } else {
+                    $horseAmount = round((float) ($item['amount'] ?? 0), 2);
+                    if ($horseAmount <= 0) {
+                        throw ValidationException::withMessages([
+                            'horses' => 'Debe especificar la cantidad de ganadores o el monto jugado para cada ejemplar.',
+                        ]);
+                    }
+                }
+
                 $horse = $race->horses->firstWhere('id', $horseId);
 
                 if (! $horse) {
@@ -856,12 +875,32 @@ class TicketController extends Controller
                     $maxOdds = $odds;
                 }
 
-                $potentialForHorse = round($horseAmount * $odds, 2);
+                // El premio es la cantidad de ganadores por el dividendo del caballo ganador
+                $potentialForHorse = $ganadores !== null
+                    ? round($ganadores * $odds, 2)
+                    : round($horseAmount * $odds, 2);
+
                 if ($potentialForHorse > $maxPotentialPayout) {
                     $maxPotentialPayout = $potentialForHorse;
                 }
 
                 $totalStake += $horseAmount;
+
+                $selectionMeta = [
+                    'bet_type' => $betType,
+                    'meeting' => $race->meeting,
+                    'race' => $race->name,
+                    'track' => $race->track,
+                    'race_date' => $race->race_date,
+                    'horse_number' => $horse->number,
+                    'horse' => $horse->name,
+                    'jockey' => $horse->jockey,
+                    'dividend' => $odds,
+                    'ganador_price' => $ganadorPrice,
+                ];
+                if ($ganadores !== null) {
+                    $selectionMeta['ganadores'] = $ganadores;
+                }
 
                 $selections[] = [
                     'race_id' => $race->id,
@@ -869,17 +908,7 @@ class TicketController extends Controller
                     'selection_label' => 'N° '.$horse->number.' - '.$horse->name.($horse->jockey ? ' (J: '.$horse->jockey.')' : ''),
                     'odd' => $odds,
                     'amount' => $horseAmount,
-                    'metadata' => [
-                        'bet_type' => $betType,
-                        'meeting' => $race->meeting,
-                        'race' => $race->name,
-                        'track' => $race->track,
-                        'race_date' => $race->race_date,
-                        'horse_number' => $horse->number,
-                        'horse' => $horse->name,
-                        'jockey' => $horse->jockey,
-                        'dividend' => $odds,
-                    ],
+                    'metadata' => $selectionMeta,
                 ];
 
                 $selectedHorsesMeta[] = [
@@ -889,6 +918,8 @@ class TicketController extends Controller
                     'jockey' => $horse->jockey,
                     'dividend' => $odds,
                     'amount' => $horseAmount,
+                    'ganadores' => $ganadores,
+                    'ganador_price' => $ganadorPrice,
                 ];
             }
 
@@ -916,6 +947,7 @@ class TicketController extends Controller
         $data = $request->validate([
             'race_id' => ['required', 'integer'],
             'horse_id' => ['required', 'integer'],
+            'ganadores' => ['nullable', 'numeric', 'min:0.01', 'max:999999999.99'],
         ], [
             'race_id.required' => 'Debe seleccionar una carrera.',
             'horse_id.required' => 'Debe seleccionar un caballo.',
@@ -928,6 +960,11 @@ class TicketController extends Controller
             throw ValidationException::withMessages([
                 'race_id' => 'La carrera seleccionada no está disponible para apuestas.',
             ]);
+        }
+
+        $ganadorPrice = (float) ($race->ganador_price ?? 100.00);
+        if ($ganadorPrice <= 0) {
+            $ganadorPrice = 100.00;
         }
 
         $horse = $race->horses->firstWhere('id', (int) $data['horse_id']);
@@ -951,27 +988,45 @@ class TicketController extends Controller
             $odds = 1.0;
         }
 
+        $ganadores = isset($data['ganadores']) && (float) $data['ganadores'] > 0
+            ? (float) $data['ganadores']
+            : null;
+
+        if ($ganadores !== null) {
+            $finalStake = round($ganadores * $ganadorPrice, 2);
+            $potentialPayout = round($ganadores * $odds, 2);
+        } else {
+            $finalStake = round($stake, 2);
+            $potentialPayout = round($stake * $odds, 2);
+        }
+
+        $selectionMeta = [
+            'bet_type' => $betType,
+            'meeting' => $race->meeting,
+            'race' => $race->name,
+            'track' => $race->track,
+            'race_date' => $race->race_date,
+            'horse_number' => $horse->number,
+            'horse' => $horse->name,
+            'jockey' => $horse->jockey,
+            'dividend' => $odds,
+            'ganador_price' => $ganadorPrice,
+        ];
+        if ($ganadores !== null) {
+            $selectionMeta['ganadores'] = $ganadores;
+        }
+
         return [
             'odds' => $odds,
-            'stake' => round($stake, 2),
-            'potential_payout' => round($stake * $odds, 2),
+            'stake' => $finalStake,
+            'potential_payout' => $potentialPayout,
             'selections' => [[
                 'race_id' => $race->id,
                 'horse_id' => $horse->id,
                 'selection_label' => 'N° '.$horse->number.' - '.$horse->name.($horse->jockey ? ' (J: '.$horse->jockey.')' : ''),
                 'odd' => $odds,
-                'amount' => round($stake, 2),
-                'metadata' => [
-                    'bet_type' => $betType,
-                    'meeting' => $race->meeting,
-                    'race' => $race->name,
-                    'track' => $race->track,
-                    'race_date' => $race->race_date,
-                    'horse_number' => $horse->number,
-                    'horse' => $horse->name,
-                    'jockey' => $horse->jockey,
-                    'dividend' => $odds,
-                ],
+                'amount' => $finalStake,
+                'metadata' => $selectionMeta,
             ]],
             'horse_racing_bet' => [
                 'bet_type' => $betType,
@@ -988,7 +1043,9 @@ class TicketController extends Controller
                                 'name' => $horse->name,
                                 'jockey' => $horse->jockey,
                                 'dividend' => $odds,
-                                'amount' => round($stake, 2),
+                                'amount' => $finalStake,
+                                'ganadores' => $ganadores,
+                                'ganador_price' => $ganadorPrice,
                             ],
                         ],
                     ],
